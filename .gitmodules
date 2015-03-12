@@ -4,3 +4,6 @@
 [submodule "perl-utils"]
 	path = perl-utils
 	url = git@git.kqi.it:sviluppo/perl-utils.git
+[submodule "node-edit-google-spreadsheet"]
+	path = node-edit-google-spreadsheet
+	url = git@github.com:mxmz/node-edit-google-spreadsheet.git
