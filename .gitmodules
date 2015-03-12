@@ -1,3 +1,6 @@
 [submodule "mxmz-json-cpp-lib"]
 	path = mxmz-json-cpp-lib
 	url = git@bitbucket.org:mxmzi/mxmz-json-cpp-lib.git
+[submodule "http-parser"]
+	path = http-parser
+	url = git@github.com:joyent/http-parser.git
