@@ -1,3 +1,6 @@
 [submodule "mxmz-json-cpp-lib"]
 	path = mxmz-json-cpp-lib
 	url = https://mxmzi@bitbucket.org/mxmzi/mxmz-json-cpp-lib.git
+[submodule "node-raml2router"]
+	path = node-raml2router
+	url = https://mxmzi@bitbucket.org/mxmzi/node-raml2router.git
