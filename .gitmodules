@@ -1,9 +1,3 @@
 [submodule "mxmz-json-cpp-lib"]
 	path = mxmz-json-cpp-lib
 	url = git@bitbucket.org:mxmzi/mxmz-json-cpp-lib.git
-[submodule "perl-utils"]
-	path = perl-utils
-	url = git@git.kqi.it:sviluppo/perl-utils.git
-[submodule "node-edit-google-spreadsheet"]
-	path = node-edit-google-spreadsheet
-	url = git@github.com:mxmz/node-edit-google-spreadsheet.git
