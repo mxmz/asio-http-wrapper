@@ -37,12 +37,12 @@ public:
             ReadHandler handler) {
                 timer_.expires_from_now( std::chrono::seconds(3) );
 
-                timer_.async_wait([handler=std::move(handler),buffers]( const boost::system::error_code& ec ) mutable {
+                timer_.async_wait([hndl=std::move(handler),buffers]( const boost::system::error_code& ec ) mutable {
                                   asio::mutable_buffer b0 =   *buffers.begin();
                                   auto buff =   asio::buffer_cast<char*>(b0);
                                   cerr << asio::buffer_size(b0) << endl;
                                   buff[0] = 'W';
-                                    handler( ec, 1 );
+                                    hndl( ec, 1 );
                                 } );
             }
 

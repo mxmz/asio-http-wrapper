@@ -109,7 +109,7 @@ class Consumer : public enable_shared_from_this<Consumer> {
 };
 
 
-
+/*
 int main() {
 
     io_service ios;
@@ -121,3 +121,6 @@ int main() {
 
 
 }
+*/
+
+

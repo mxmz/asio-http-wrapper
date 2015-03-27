@@ -61,7 +61,7 @@ class Connection : public enable_shared_from_this<Connection<Socket>>{
     mutable buffer_t buffer_;
 };
 
-
+/*
 
 int main() {
     asio::io_service ios;
@@ -80,3 +80,4 @@ int main() {
     reader->async_read( readcallback);
     ios2.run();
 }
+*/
