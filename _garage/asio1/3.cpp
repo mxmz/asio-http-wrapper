@@ -17,7 +17,7 @@ using namespace boost;
 
 #include "socket_pipe.hxx"
 
-typedef socket_pipe_tmpl< asio::ip::tcp::socket > tcp_socket_pipe;
+typedef ssocket_pipe_tmpl< asio::ip::tcp::socket > tcp_socket_pipe;
 
 
 #include "ring_buffer.hxx"
