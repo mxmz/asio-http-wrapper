@@ -15,9 +15,9 @@ using namespace boost;
 
 
 
-#include "socket_pipe.hxx"
+#include "stream_pipe.hxx"
 
-typedef ssocket_pipe_tmpl< asio::ip::tcp::socket > tcp_socket_pipe;
+typedef stream_pipe_tmpl< asio::ip::tcp::socket > tcp_socket_pipe;
 
 
 #include "ring_buffer.hxx"
@@ -80,8 +80,8 @@ int main()
         asio::ip::tcp::socket dst(ios);
 
         src.connect( asio::ip::tcp::endpoint( asio::ip::address::from_string("127.0.0.1"), 9001) );
-        dst.connect( asio::ip::tcp::endpoint( asio::ip::address::from_string("192.168.69.23"), 9002) );
-        //dst.connect( asio::ip::tcp::endpoint( asio::ip::address::from_string("127.0.0.1"), 9002) );
+        //dst.connect( asio::ip::tcp::endpoint( asio::ip::address::from_string("192.168.69.23"), 9002) );
+        dst.connect( asio::ip::tcp::endpoint( asio::ip::address::from_string("127.0.0.1"), 9002) );
 
         auto pipe = std::make_shared<tcp_socket_pipe>(std::move(src), std::move(dst));
 

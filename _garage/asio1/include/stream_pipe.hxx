@@ -1,5 +1,5 @@
-#ifndef socket_pipe_9384759387593845793845793485739485739485739
-#define socket_pipe_9384759387593845793845793485739485739485739
+#ifndef stream_pipe_9384759387593845793845793485739485739485739
+#define stream_pipe_9384759387593845793845793485739485739485739
 
 #include <iostream>
 #include <chrono>
@@ -26,12 +26,12 @@ int debug_count_write = 0;
 
 #define cerr if(0) cerr
 
-template< class SrcStream,  class DstSocket = SrcSocket, class Strand = asio::io_service::strand >
-class socket_pipe_tmpl: public std::enable_shared_from_this<socket_pipe_tmpl<SrcStream,DstSocket,Strand>>
+template< class SrcStream,  class DstStream = SrcStream, class Strand = asio::io_service::strand >
+class stream_pipe_tmpl: public std::enable_shared_from_this<stream_pipe_tmpl<SrcStream,DstStream,Strand>>
 {
 
 public:
-    socket_pipe_tmpl( SrcStream&& src, DstSocket&& dst )
+    stream_pipe_tmpl( SrcStream&& src, DstStream&& dst )
         :   src_stream_(std::move(src)),
             reading_(false),
             dst_stream_(std::move(dst)),
@@ -44,7 +44,7 @@ public:
 
     }
 
-    typedef std::function< void(const system::error_code&, SrcStream&&, const system::error_code& write_ec_, SrcSocket&& )> completion_handler;
+    typedef std::function< void(const system::error_code&, SrcStream&&, const system::error_code& write_ec_, SrcStream&& )> completion_handler;
 
     void run( completion_handler hndl )
     {
@@ -166,5 +166,5 @@ private:
 
 
 
-#endif // socket_pipe_9384759387593845793845793485739485739485739
+#endif // stream_pipe_9384759387593845793845793485739485739485739
 
