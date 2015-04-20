@@ -1,7 +1,6 @@
- PROJECT(asio1)
+PROJECT(asio1)
 cmake_minimum_required(VERSION 2.4)
 SET( asio1_SRCs 
-        
                 3.cpp
  )
 
