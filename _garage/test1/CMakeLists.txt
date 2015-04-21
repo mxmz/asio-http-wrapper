@@ -2,11 +2,12 @@ PROJECT(test)
 cmake_minimum_required(VERSION 2.4)
 SET( test_SRCs 
                 test1.cpp
+                ../../http-parser/http_parser.c
  )
 
 
 ADD_DEFINITIONS(-D_REENTRANT )
-INCLUDE_DIRECTORIES( . ./include/ )
+INCLUDE_DIRECTORIES( . ./include/ ../../http-parser )
 LINK_DIRECTORIES( ${LINK_DIRECTORIES} )	
 
 
@@ -20,7 +21,7 @@ TARGET_LINK_LIBRARIES( test  -lboost_system
 SET_TARGET_PROPERTIES( test
 		PROPERTIES 
 		OUTPUT_NAME test
-		COMPILE_FLAGS "-g -fpermissive -DRELEASE=1 -Wall -std=c++0x -DPREFIX=\\\"${CMAKE_INSTALL_PREFIX}\\\" "
+		COMPILE_FLAGS "-g -Wall -std=c++0x -DPREFIX=\\\"${CMAKE_INSTALL_PREFIX}\\\" "
 )
 
 

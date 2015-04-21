@@ -6,9 +6,30 @@
 #include <map>
 #include <functional>
 
+#include "http_parser.hxx"
+
+
+
 using namespace std;
 
 
+class std_http_parser: mxmz::http_parser_base<std_http_parser> {
+
+
+};
+
+int main() {
+
+        std_http_parser parser;
+
+
+
+}
+
+#include "detail/http_parser_impl.hxx"
+
+
+/*
 typedef std::map< std::string, std::string> map_t;
 typedef std::map< std::string,  std::function<void( const std::string& )>  > setter_map_t;
 
@@ -63,3 +84,5 @@ int main() {
 
 
 }
+
+*/
