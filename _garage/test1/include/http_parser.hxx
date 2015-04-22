@@ -2,41 +2,15 @@
 
 namespace mxmz {
 
-    template < class Derived >
-    class http_parser_base  {
+template <class Derived>
+class http_parser_base {
+  class detail;
+  std::unique_ptr<detail> i;
 
-        class detail;
-        std::unique_ptr<detail>   i;
-        public: 
-           
-        http_parser_base();
+ public:
+  http_parser_base();
 
-	void reset();
-        size_t parse( const char* buffer, size_t len );
-
-
-    };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  void reset();
+  size_t parse(const char* buffer, size_t len);
+};
 }

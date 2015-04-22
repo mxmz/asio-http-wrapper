@@ -24,17 +24,14 @@ struct http_parser_base<Derived>::detail {
     settings.on_body = &body_cb;
     settings.on_message_complete = &message_complete_cb;
     reset();
-    
   }
 
-  void reset() {
-    http_parser_init(parser, HTTP_REQUEST);
-   }
+  void reset() { http_parser_init(parser, HTTP_REQUEST); }
 
   ~detail() { free(parser); }
 
   size_t parse(const char *buffer, size_t len) {
-    size_t rv =  http_parser_execute(parser, &settings, buffer, len);
+    size_t rv = http_parser_execute(parser, &settings, buffer, len);
     cerr << parser->http_errno << endl;
     cerr << http_errno_name(http_errno(parser->http_errno)) << endl;
     cerr << http_errno_description(http_errno(parser->http_errno)) << endl;
@@ -45,18 +42,21 @@ struct http_parser_base<Derived>::detail {
   /* callback functions */
 
   static int header_field_cb(http_parser *p, const char *buf, size_t len) {
-    cerr << __FUNCTION__ << ": "; cerr.write(buf,len) << endl;
+    cerr << __FUNCTION__ << ": ";
+    cerr.write(buf, len) << endl;
 
     return 0;
   }
 
   static int header_value_cb(http_parser *p, const char *buf, size_t len) {
-    cerr << __FUNCTION__ << ": "; cerr.write(buf,len) << endl;
+    cerr << __FUNCTION__ << ": ";
+    cerr.write(buf, len) << endl;
     return 0;
   }
 
   static int body_cb(http_parser *p, const char *buf, size_t len) {
-    cerr << __FUNCTION__ << ": "; cerr.write(buf,len) << endl;
+    cerr << __FUNCTION__ << ": ";
+    cerr.write(buf, len) << endl;
     ;
 
     return 0;
@@ -89,13 +89,15 @@ struct http_parser_base<Derived>::detail {
   }
 
   static int response_status_cb(http_parser *p, const char *buf, size_t len) {
-    cerr << __FUNCTION__ << ": "; cerr.write(buf, len) << endl;
+    cerr << __FUNCTION__ << ": ";
+    cerr.write(buf, len) << endl;
     ;
     return 0;
   }
 
   static int request_url_cb(http_parser *p, const char *buf, size_t len) {
-    cerr << __FUNCTION__ << ": "; cerr.write(buf,len) << endl;
+    cerr << __FUNCTION__ << ": ";
+    cerr.write(buf, len) << endl;
     ;
     return 0;
   }

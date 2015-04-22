@@ -8,67 +8,56 @@
 
 #include "http_parser.hxx"
 
-
-
 using namespace std;
 
-
-class std_http_parser: public mxmz::http_parser_base<std_http_parser> {
-
-
-};
-
+class std_http_parser : public mxmz::http_parser_base<std_http_parser> {};
 
 int main() {
+  std_http_parser parser;
 
+  const string s1 =
+      "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
+      "Accept: */*\r\n"
+      "Transfer-Encoding: identity\r\n"
+      "Content-Length: 5\r\n"
+      "\r\n"
+      "World";
 
+  parser.parse(s1.data(), s1.size());
 
-        std_http_parser parser;
+  const string s2 =
+      "HTTP/1.1 200 OK\r\n"
+      "Date: Tue, 04 Aug 2009 07:59:32 GMT\r\n"
+      "Server: Apache\r\n"
+      "X-Powered-By: Servlet/2.5 JSP/2.1\r\n"
+      "Content-Type: text/xml; charset=utf-8\r\n"
+      "Connection: close\r\n"
+      "\r\n"
+      "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+      "<SOAP-ENV:Envelope "
+      "xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\">\n"
+      "  <SOAP-ENV:Body>\n"
+      "    <SOAP-ENV:Fault>\n"
+      "       <faultcode>SOAP-ENV:Client</faultcode>\n"
+      "       <faultstring>Client Error</faultstring>\n"
+      "    </SOAP-ENV:Fault>\n"
+      "  </SOAP-ENV:Body>\n"
+      "</SOAP-ENV:Envelope>";
 
+  parser.reset();
 
-	const string s1 = "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
-         "Accept: */*\r\n"
-         "Transfer-Encoding: identity\r\n"
-         "Content-Length: 5\r\n"
-         "\r\n"
-         "World";
-
-	parser.parse( s1.data(), s1.size() );
-
-
-	const string s2 = "HTTP/1.1 200 OK\r\n"
-         "Date: Tue, 04 Aug 2009 07:59:32 GMT\r\n"
-         "Server: Apache\r\n"
-         "X-Powered-By: Servlet/2.5 JSP/2.1\r\n"
-         "Content-Type: text/xml; charset=utf-8\r\n"
-         "Connection: close\r\n"
-         "\r\n"
-         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-         "<SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\">\n"
-         "  <SOAP-ENV:Body>\n"
-         "    <SOAP-ENV:Fault>\n"
-         "       <faultcode>SOAP-ENV:Client</faultcode>\n"
-         "       <faultstring>Client Error</faultstring>\n"
-         "    </SOAP-ENV:Fault>\n"
-         "  </SOAP-ENV:Body>\n"
-         "</SOAP-ENV:Envelope>";
-
-	
-	parser.reset();
-
-	parser.parse( s2.data(), s2.size() );
-
+  parser.parse(s2.data(), s2.size());
 }
 
 #include "detail/http_parser_impl.hxx"
 
-
 /*
 typedef std::map< std::string, std::string> map_t;
-typedef std::map< std::string,  std::function<void( const std::string& )>  > setter_map_t;
+typedef std::map< std::string,  std::function<void( const std::string& )>  >
+setter_map_t;
 
 struct base_box {
-    
+
     setter_map_t  setters;
 
     void set( const string& k, const string& v ) {
@@ -98,8 +87,8 @@ struct B : public base_boxed  {
 
 template< class Boxed, class Base >
 struct box: public Base, public Boxed {
-    box() 
-    { 
+    box()
+    {
             this->setters[ Boxed::name ] = Boxed::get_setter();
     }
 };
