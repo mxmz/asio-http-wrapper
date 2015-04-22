@@ -10,10 +10,15 @@
 
 using namespace std;
 
-class std_http_parser : public mxmz::http_parser_base<std_http_parser> {};
+class std_http_parser : public mxmz::http_parser_base<std_http_parser> {
+ public:
+  using mxmz::http_parser_base<std_http_parser>::http_parser_base;
+
+  void on_body(const char* b, size_t len) { cerr.write(b, len) << endl; }
+};
 
 int main() {
-  std_http_parser parser;
+  std_http_parser parser(std_http_parser::Both);
 
   const string s1 =
       "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
@@ -47,6 +52,8 @@ int main() {
   parser.reset();
 
   parser.parse(s2.data(), s2.size());
+
+  std_http_parser parser2(move(parser));
 }
 
 #include "detail/http_parser_impl.hxx"

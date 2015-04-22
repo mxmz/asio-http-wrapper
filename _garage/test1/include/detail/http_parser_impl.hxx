@@ -6,14 +6,18 @@ namespace mxmz {
 
 template <class Derived>
 struct http_parser_base<Derived>::detail {
-  typedef http_parser_base<Derived> parent_type;
+  typedef http_parser_base<Derived> owner_type;
 
-  parent_type *parent;
+  owner_type *owner;
   struct http_parser *parser;
   struct http_parser_settings settings;
+  enum http_parser_type type;
 
-  detail(parent_type *p) : parent(p) {
+  detail(owner_type *p, owner_type::mode_t mode) : owner(p) {
     parser = (http_parser *)malloc(sizeof(http_parser));
+    type = mode == owner_type::Request
+               ? HTTP_REQUEST
+               : (mode == owner_type::Response ? HTTP_RESPONSE : HTTP_BOTH);
 
     settings.on_message_begin = &message_begin_cb;
     settings.on_url = &request_url_cb;
@@ -23,10 +27,12 @@ struct http_parser_base<Derived>::detail {
     settings.on_headers_complete = &headers_complete_cb;
     settings.on_body = &body_cb;
     settings.on_message_complete = &message_complete_cb;
+    parser->data = this;
     reset();
   }
+  Derived &derived_owner() { return static_cast<Derived &>(*owner); }
 
-  void reset() { http_parser_init(parser, HTTP_REQUEST); }
+  void reset() { http_parser_init(parser, type); }
 
   ~detail() { free(parser); }
 
@@ -40,6 +46,10 @@ struct http_parser_base<Derived>::detail {
   }
 
   /* callback functions */
+
+  static Derived &derived_owner(http_parser *p) {
+    return static_cast<detail *>(p->data)->derived_owner();
+  }
 
   static int header_field_cb(http_parser *p, const char *buf, size_t len) {
     cerr << __FUNCTION__ << ": ";
@@ -58,6 +68,8 @@ struct http_parser_base<Derived>::detail {
     cerr << __FUNCTION__ << ": ";
     cerr.write(buf, len) << endl;
     ;
+
+    derived_owner(p).on_body(buf, len);
 
     return 0;
   }
@@ -109,8 +121,8 @@ namespace {}
 namespace mxmz {
 
 template <class Derived>
-http_parser_base<Derived>::http_parser_base()
-    : i(new detail(this)) {}
+http_parser_base<Derived>::http_parser_base(mode_t mode)
+    : i(new detail(this, mode)) {}
 
 template <class Derived>
 void http_parser_base<Derived>::reset() {
