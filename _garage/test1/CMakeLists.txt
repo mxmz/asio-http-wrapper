@@ -17,11 +17,12 @@ ADD_EXECUTABLE ( test ${test_SRCs} )
 TARGET_LINK_LIBRARIES( test  -lboost_system
 ) 
 
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 
 SET_TARGET_PROPERTIES( test
 		PROPERTIES 
 		OUTPUT_NAME test
-		COMPILE_FLAGS "-g -Wall -std=c++0x -DPREFIX=\\\"${CMAKE_INSTALL_PREFIX}\\\" "
+		COMPILE_FLAGS "-g -Wall -DPREFIX=\\\"${CMAKE_INSTALL_PREFIX}\\\" "
 )
 
 
