@@ -4,16 +4,16 @@ using namespace std;
 
 namespace mxmz {
 
-template <class Derived>
-struct http_parser_base<Derived>::detail {
-  typedef http_parser_base<Derived> owner_type;
+template <class Observer>
+struct http_parser_base<Observer>::detail {
+  typedef http_parser_base<Observer> owner_type;
 
-  owner_type *owner;
+  Observer& observer;
   struct http_parser *parser;
   struct http_parser_settings settings;
   enum http_parser_type type;
 
-  detail(owner_type *p, owner_type::mode_t mode) : owner(p) {
+  detail(owner_type::mode_t mode, Observer& o ) : observer(o) {
     parser = (http_parser *)malloc(sizeof(http_parser));
     type = mode == owner_type::Request
                ? HTTP_REQUEST
@@ -30,7 +30,6 @@ struct http_parser_base<Derived>::detail {
     parser->data = this;
     reset();
   }
-  Derived &derived_owner() { return static_cast<Derived &>(*owner); }
 
   void reset() { http_parser_init(parser, type); }
 
@@ -42,13 +41,16 @@ struct http_parser_base<Derived>::detail {
     cerr << http_errno_name(http_errno(parser->http_errno)) << endl;
     cerr << http_errno_description(http_errno(parser->http_errno)) << endl;
     cerr << "." << endl;
+    if ( parser->http_errno ) {
+            observer.on_error( parser->http_errno, http_errno_description(http_errno(parser->http_errno)) );
+    }
     return rv;
   }
 
   /* callback functions */
 
-  static Derived &derived_owner(http_parser *p) {
-    return static_cast<detail *>(p->data)->derived_owner();
+  static Observer & get_observer(http_parser *p) {
+    return static_cast<detail *>(p->data)->observer;
   }
 
   static int header_field_cb(http_parser *p, const char *buf, size_t len) {
@@ -69,7 +71,7 @@ struct http_parser_base<Derived>::detail {
     cerr.write(buf, len) << endl;
     ;
 
-    derived_owner(p).on_body(buf, len);
+    get_observer(p).on_body(buf, len);
 
     return 0;
   }
@@ -120,16 +122,16 @@ namespace {}
 
 namespace mxmz {
 
-template <class Derived>
-http_parser_base<Derived>::http_parser_base(mode_t mode)
-    : i(new detail(this, mode)) {}
+template <class Observer>
+http_parser_base<Observer>::http_parser_base(mode_t mode, Observer& o)
+    : i(new detail(mode, o)) {}
 
-template <class Derived>
-void http_parser_base<Derived>::reset() {
+template <class Observer>
+void http_parser_base<Observer>::reset() {
   return i->reset();
 }
-template <class Derived>
-size_t http_parser_base<Derived>::parse(const char *buffer, size_t len) {
+template <class Observer>
+size_t http_parser_base<Observer>::parse(const char *buffer, size_t len) {
   return i->parse(buffer, len);
 }
 }

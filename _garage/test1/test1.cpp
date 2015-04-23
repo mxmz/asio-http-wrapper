@@ -12,13 +12,17 @@ using namespace std;
 
 class std_http_parser : public mxmz::http_parser_base<std_http_parser> {
  public:
-  using mxmz::http_parser_base<std_http_parser>::http_parser_base;
+  std_http_parser( mode_t mode ) : mxmz::http_parser_base<std_http_parser>( mode, *this) {} 
 
   void on_body(const char* b, size_t len) { cerr.write(b, len) << endl; }
+
+  void on_error( int http_errno, const char* msg ) {
+            cerr << "Error: " << http_errno << " " << msg << endl;
+  }
 };
 
 int main() {
-  std_http_parser parser(std_http_parser::Both);
+  std_http_parser parser(std_http_parser::Request);
 
   const string s1 =
       "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
