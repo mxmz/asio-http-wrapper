@@ -11,53 +11,68 @@
 using namespace std;
 
 class std_http_parser : public mxmz::http_parser_base<std_http_parser> {
- public:
-  std_http_parser( mode_t mode ) : mxmz::http_parser_base<std_http_parser>( mode, *this) {} 
+public:
+    std_http_parser(mode_t mode)
+        : mxmz::http_parser_base<std_http_parser>(mode, *this)
+    {
+	on_body = [](const char* b, size_t l) {
+			cerr.write(b, l) << endl;
 
-  void on_body(const char* b, size_t len) { cerr.write(b, len) << endl; }
+		};
+    }
 
-  void on_error( int http_errno, const char* msg ) {
-            cerr << "Error: " << http_errno << " " << msg << endl;
-  }
+   typedef function< void( const char*, size_t) > data_handler;
+
+   data_handler on_body;
+
+   /*
+    void on_body(const char* b, size_t len) { cerr.write(b, len) << endl; }
+   */
+
+
+    void on_error(int http_errno, const char* msg)
+    {
+        cerr << "Error: " << http_errno << " " << msg << endl;
+    }
 };
 
-int main() {
-  std_http_parser parser(std_http_parser::Request);
 
-  const string s1 =
-      "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
-      "Accept: */*\r\n"
-      "Transfer-Encoding: identity\r\n"
-      "Content-Length: 5\r\n"
-      "\r\n"
-      "World";
+int main()
+{
+    std_http_parser parser(std_http_parser::Request);
 
-  parser.parse(s1.data(), s1.size());
+    const string s1 = "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
+                      "Accept: */*\r\n"
+                      "Transfer-Encoding: identity\r\n"
+                      "Content-Length: 5\r\n"
+                      "\r\n"
+                      "World";
 
-  const string s2 =
-      "HTTP/1.1 200 OK\r\n"
-      "Date: Tue, 04 Aug 2009 07:59:32 GMT\r\n"
-      "Server: Apache\r\n"
-      "X-Powered-By: Servlet/2.5 JSP/2.1\r\n"
-      "Content-Type: text/xml; charset=utf-8\r\n"
-      "Connection: close\r\n"
-      "\r\n"
-      "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-      "<SOAP-ENV:Envelope "
-      "xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\">\n"
-      "  <SOAP-ENV:Body>\n"
-      "    <SOAP-ENV:Fault>\n"
-      "       <faultcode>SOAP-ENV:Client</faultcode>\n"
-      "       <faultstring>Client Error</faultstring>\n"
-      "    </SOAP-ENV:Fault>\n"
-      "  </SOAP-ENV:Body>\n"
-      "</SOAP-ENV:Envelope>";
+    parser.parse(s1.data(), s1.size());
 
-  parser.reset();
+    const string s2 = "HTTP/1.1 200 OK\r\n"
+                      "Date: Tue, 04 Aug 2009 07:59:32 GMT\r\n"
+                      "Server: Apache\r\n"
+                      "X-Powered-By: Servlet/2.5 JSP/2.1\r\n"
+                      "Content-Type: text/xml; charset=utf-8\r\n"
+                      "Connection: close\r\n"
+                      "\r\n"
+                      "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                      "<SOAP-ENV:Envelope "
+                      "xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\">\n"
+                      "  <SOAP-ENV:Body>\n"
+                      "    <SOAP-ENV:Fault>\n"
+                      "       <faultcode>SOAP-ENV:Client</faultcode>\n"
+                      "       <faultstring>Client Error</faultstring>\n"
+                      "    </SOAP-ENV:Fault>\n"
+                      "  </SOAP-ENV:Body>\n"
+                      "</SOAP-ENV:Envelope>";
 
-  parser.parse(s2.data(), s2.size());
+    parser.reset();
 
-  std_http_parser parser2(move(parser));
+    parser.parse(s2.data(), s2.size());
+
+    std_http_parser parser2(move(parser));
 }
 
 #include "detail/http_parser_impl.hxx"
