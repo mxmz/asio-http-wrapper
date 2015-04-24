@@ -37,6 +37,7 @@ struct http_parser_base<Handlers>::detail {
 
     ~detail() { free(parser); }
 
+
     size_t parse(const char* buffer, size_t len)
     {
         size_t rv = http_parser_execute(parser, &settings, buffer, len);
@@ -62,6 +63,14 @@ struct http_parser_base<Handlers>::detail {
     {
         cerr << __FUNCTION__ << ": ";
         cerr.write(buf, len) << endl;
+        
+        cerr << p->http_major << endl;
+        cerr << p->http_minor << endl;
+        cerr << p->status_code << endl;
+        cerr << p->method << endl;
+        cerr << http_method_str((http_method)p->method) << endl;
+        cerr << p->http_errno << endl;
+        cerr << "." << endl;
 
         return 0;
     }
@@ -87,6 +96,13 @@ struct http_parser_base<Handlers>::detail {
     static int message_begin_cb(http_parser* p)
     {
         cerr << __FUNCTION__ << endl;
+        cerr << p->http_errno << endl;
+        cerr << "." << endl;
+        cerr << p->http_major << endl;
+        cerr << p->http_minor << endl;
+        cerr << p->status_code << endl;
+        cerr << p->method << endl;
+        cerr << http_method_str((http_method)p->method) << endl;
         cerr << p->http_errno << endl;
         cerr << "." << endl;
 

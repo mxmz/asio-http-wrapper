@@ -69,10 +69,11 @@ int main()
                       "</SOAP-ENV:Envelope>";
 
     parser.reset();
+    cerr << "-----------------------------------" << endl;
+    std_http_parser parser2(std_http_parser::Response);
 
-    parser.parse(s2.data(), s2.size());
+    parser2.parse(s2.data(), s2.size());
 
-    std_http_parser parser2(move(parser));
 }
 
 #include "detail/http_parser_impl.hxx"
