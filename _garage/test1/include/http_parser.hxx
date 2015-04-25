@@ -10,8 +10,12 @@ class http_parser_base {
 public:
     enum mode_t { Request,
                   Response,
-                  Both };
+                  Both
+                };
     http_parser_base(mode_t, Handlers&);
+
+    void pause();
+    void unpause();
 
     void reset();
     size_t parse(const char* buffer, size_t len);

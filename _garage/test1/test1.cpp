@@ -12,30 +12,59 @@ using namespace std;
 
 class std_http_parser : public mxmz::http_parser_base<std_http_parser> {
 public:
-    std_http_parser(mode_t mode)
+
+    typedef map< string, string > headers_t;
+
+    explicit std_http_parser(mode_t mode)
         : mxmz::http_parser_base<std_http_parser>(mode, *this)
     {
-	on_body = [](const char* b, size_t l) {
-			cerr.write(b, l) << endl;
-
-		};
+        on_body = [](const char* b, size_t l) {
+            cerr << "body data: " << l << " ";
+            cerr.write(b, l) << endl;
+        };
+        on_request_headers_complete = []( const string& method, const string& request_url ) {
+            cerr << "req" << endl;
+        };
+        on_response_headers_complete = []( int code, const string& response_status ) {
+            cerr << "res" << endl;
+        };
     }
 
-   typedef function< void( const char*, size_t) > data_handler;
+    typedef function< void( const char*, size_t) > on_body_handler;
+    typedef function< void( const string& method, const string& req_url  ) > on_request_headers_complete_handler;
+    typedef function< void( int status_code, string&& res_staus  ) > on_response_headers_complete_handler;
 
-   data_handler on_body;
+    on_body_handler on_body;
+    on_request_headers_complete_handler   on_request_headers_complete;
+    on_response_headers_complete_handler  on_response_headers_complete;
 
-   /*
-    void on_body(const char* b, size_t len) { cerr.write(b, len) << endl; }
-   */
+    /*
+     void on_body(const char* b, size_t len) { cerr.write(b, len) << endl; }
+    */
 
 
     void on_error(int http_errno, const char* msg)
     {
         cerr << "Error: " << http_errno << " " << msg << endl;
     }
+    void on_message_end()
+    {
+//        pause();
+        cerr << "Message complete" << endl;
+    }
+    void on_header_line( const std::string& name, string&& value )
+    {
+        cerr << name << "  = " << value << endl;
+    }
 };
 
+
+template< class Map >
+void dump( const Map& m ) {
+    for ( auto& e : m ) {
+        cerr << e.first << " : " << e.second << endl;
+    }
+}
 
 int main()
 {
@@ -48,14 +77,37 @@ int main()
                       "\r\n"
                       "World";
 
-    parser.parse(s1.data(), s1.size());
+    parser.on_request_headers_complete = [&]( const string& m, const string& url ) {
+        cerr << "req headers: " << m << " " << url << endl;
+//            parser.pause();
+    };
+
+
+    for( auto& c : s1 ) {
+        parser.parse(&c, 1 );
+    }
+
+    /*
+    auto rc1 = parser.parse(s1.data(), s1.size());
+
+    cerr << rc1 <<  " " << s1.size() << endl;
+
+    parser.unpause();
+    auto rc2 = parser.parse(s1.data() + rc1, s1.size() - rc1 );
+
+    cerr << rc2 <<  " " << s1.size() - rc1 << endl;
+    */
+
+    cerr << "---------------------------------------------------------------" << endl;
 
     const string s2 = "HTTP/1.1 200 OK\r\n"
                       "Date: Tue, 04 Aug 2009 07:59:32 GMT\r\n"
                       "Server: Apache\r\n"
+                      "X-aa:\r\n"
                       "X-Powered-By: Servlet/2.5 JSP/2.1\r\n"
                       "Content-Type: text/xml; charset=utf-8\r\n"
-                      "Connection: close\r\n"
+                      "Content-Length: 311\r\n"
+                      "Connection: keepalive\r\n"
                       "\r\n"
                       "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
                       "<SOAP-ENV:Envelope "
@@ -68,12 +120,27 @@ int main()
                       "  </SOAP-ENV:Body>\n"
                       "</SOAP-ENV:Envelope>";
 
-    parser.reset();
-    cerr << "-----------------------------------" << endl;
+
     std_http_parser parser2(std_http_parser::Response);
 
-    parser2.parse(s2.data(), s2.size());
+    parser2.on_response_headers_complete = [&]( int code, const string& response_status ) {
+        cerr << "response status " << code << " " << response_status << endl;
+        parser2.pause();
+    };
 
+    cerr << "parse(1) " << parser2.parse(s2.data(), 198 ) << " " << s2.size() << endl;
+    cerr << "--------------" << endl;;
+    cerr.write((const char*)s2.data(), 198 ) << "|||" << endl;
+    cerr << "--------------" << endl;;
+
+    parser2.unpause();
+    cerr << "parse(2)" << parser2.parse(s2.data() + 196, 10 ) << endl;
+    cerr << "parse(2)" << parser2.parse("012345", 6 ) << endl;
+
+    /*
+    parser2.unpause();
+    cerr << "parse(2)" << parser2.parse(s2.data(), s2.size()) << endl;
+    */
 }
 
 #include "detail/http_parser_impl.hxx"
