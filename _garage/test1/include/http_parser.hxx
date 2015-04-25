@@ -13,7 +13,7 @@ public:
                   Both
                 };
     http_parser_base(mode_t, Handlers&);
-
+    http_parser_base(mode_t mode ) : http_parser_base( mode, static_cast<Handlers&>(*this) ) { }
     void pause();
     void unpause();
 

@@ -145,6 +145,7 @@ struct http_parser_base<Handlers>::detail : public tuple_builder< http_parser_ba
     static int message_begin_cb(http_parser* p)
     {
         cerr << __FUNCTION__ << endl;
+        get_self(p).handlers.on_message_begin();
         // cerr << p->http_errno << endl;
         // cerr << "." << endl;
         // cerr << p->http_major << endl;

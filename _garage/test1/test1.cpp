@@ -16,7 +16,7 @@ public:
     typedef map< string, string > headers_t;
 
     explicit std_http_parser(mode_t mode)
-        : mxmz::http_parser_base<std_http_parser>(mode, *this)
+        : mxmz::http_parser_base<std_http_parser>(mode)
     {
         on_body = [](const char* b, size_t l) {
             cerr << "body data: " << l << " ";
@@ -51,6 +51,11 @@ public:
     {
 //        pause();
         cerr << "Message complete" << endl;
+    }
+    void on_message_begin()
+    {
+//        pause();
+        cerr << "Message begin" << endl;
     }
     void on_header_line( const std::string& name, string&& value )
     {
