@@ -63,6 +63,56 @@ public:
     }
 };
 
+class handlers_interface {
+public:
+    virtual void on_body(const char* b, size_t l) = 0;
+    virtual void on_response_headers_complete( int code, const string& response_status ) = 0;
+    virtual void on_request_headers_complete( const string& method, const string& request_url ) = 0;
+    virtual void on_error(int http_errno, const char* msg) = 0;
+    virtual void on_message_end() = 0;
+    virtual void on_message_begin() = 0;
+    virtual void on_header_line( const std::string& name, string&& value ) = 0;
+
+};
+
+class simple_handlers : public handlers_interface {
+public:
+
+    void  on_body(const char* b, size_t l) {
+        cerr << "body data: " << l << " ";
+        cerr.write(b, l) << endl;
+    }
+
+    void on_response_headers_complete( int code, const string& response_status ) {
+        cerr << "res" << endl;
+    }
+
+    void  on_request_headers_complete( const string& method, const string& request_url ) {
+        cerr << "req" << endl;
+    };
+
+    void on_error(int http_errno, const char* msg)
+    {
+        cerr << "Error: " << http_errno << " " << msg << endl;
+    }
+    void on_message_end()
+    {
+//        pause();
+        cerr << "Message complete" << endl;
+    }
+    void on_message_begin()
+    {
+//        pause();
+        cerr << "Message begin" << endl;
+    }
+    void on_header_line( const std::string& name, string&& value )
+    {
+        cerr << name << "  = " << value << endl;
+    }
+};
+
+
+
 
 template< class Map >
 void dump( const Map& m ) {
@@ -73,6 +123,10 @@ void dump( const Map& m ) {
 
 int main()
 {
+    simple_handlers handlers;
+    mxmz::http_parser_base<handlers_interface> p0(mxmz::http_parser_base<handlers_interface>::Request, handlers);
+
+
     std_http_parser parser(std_http_parser::Request);
 
     const string s1 = "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
@@ -90,6 +144,7 @@ int main()
 
     for( auto& c : s1 ) {
         parser.parse(&c, 1 );
+        p0.parse(&c, 1 );
     }
 
     /*

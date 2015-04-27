@@ -228,6 +228,12 @@ http_parser_base<Handlers>::http_parser_base(mode_t mode, Handlers& hndls)
 }
 
 template <class Handlers>
+http_parser_base<Handlers>::http_parser_base(mode_t mode)
+    : i( new detail(mode, static_cast<Handlers&>(*this)))
+{
+}
+
+template <class Handlers>
 void http_parser_base<Handlers>::pause()
 {
     return i->pause();

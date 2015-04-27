@@ -1,5 +1,6 @@
 #include <memory>
 
+
 namespace mxmz {
 
 template <class Handlers>
@@ -13,7 +14,9 @@ public:
                   Both
                 };
     http_parser_base(mode_t, Handlers&);
-    http_parser_base(mode_t mode ) : http_parser_base( mode, static_cast<Handlers&>(*this) ) { }
+protected:
+    http_parser_base(mode_t mode );
+public:
     void pause();
     void unpause();
 
