@@ -14,7 +14,7 @@ LINK_DIRECTORIES( ${LINK_DIRECTORIES} )
 ADD_EXECUTABLE ( test ${test_SRCs} )
 
 
-TARGET_LINK_LIBRARIES( test  -lboost_system
+TARGET_LINK_LIBRARIES( test  -lboost_system -lpthread
 ) 
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 ")
