@@ -47,7 +47,7 @@ public:
     {
         cerr << "Error: " << http_errno << " " << msg << endl;
     }
-    void on_message_end()
+    void on_message_complete()
     {
 //        pause();
         cerr << "Message complete" << endl;
@@ -69,7 +69,7 @@ public:
     virtual void on_response_headers_complete( int code, const string& response_status ) = 0;
     virtual void on_request_headers_complete( const string& method, const string& request_url ) = 0;
     virtual void on_error(int http_errno, const char* msg) = 0;
-    virtual void on_message_end() = 0;
+    virtual void on_message_complete() = 0;
     virtual void on_message_begin() = 0;
     virtual void on_header_line( const std::string& name, string&& value ) = 0;
 
@@ -95,7 +95,7 @@ public:
     {
         cerr << "Error: " << http_errno << " " << msg << endl;
     }
-    void on_message_end()
+    void on_message_complete()
     {
 //        pause();
         cerr << "Message complete" << endl;

@@ -190,7 +190,7 @@ struct http_parser_base<Handlers>::detail : public tuple_builder< http_parser_ba
     static int message_complete_cb(http_parser* p)
     {
         // cerr << __FUNCTION__ << endl;
-        get_self(p).handlers.on_message_end();
+        get_self(p).handlers.on_message_complete();
         return 0;
     }
 
