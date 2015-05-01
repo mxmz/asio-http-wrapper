@@ -73,6 +73,7 @@ void dump( const Map& m ) {
 
 /* --------------------------------------------- --------------------------------------------- --------------------------------------------- */
 
+
 struct request {
     string method;
     string url;
@@ -119,10 +120,13 @@ public:
         current_request->ready = true;
     }
 
+    pair<const char*, size_t> last_body_chunk;
+
     void  on_body(const char* b, size_t l) {
         cerr << "body data: " << l << " ";
         //cerr.write(b, l) << endl;
         current_request->body.append( b, l );
+        last_body_chunk = move(make_pair(b,l));
     }
 
     std::array<char, 8192> buffer;
@@ -137,6 +141,10 @@ public:
             if (!ec)
             {
                 size_t read = parse( buffer.data(), bytes_transferred );
+                cerr << (void*) buffer.data() << " " << bytes_transferred << endl;
+                cerr << (void*)  last_body_chunk.first << " " << last_body_chunk.second << endl;
+                cerr << (char*)  last_body_chunk.first - (char*) buffer.data() << endl;
+
                 if ( read != bytes_transferred ) {
                     cerr << "Error" << endl;
                 }
