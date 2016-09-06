@@ -1,6 +1,6 @@
 #ifndef ringbuffer209384029384209348028172368173618736187363498305983045
 #define ringbuffer209384029384209348028172368173618736187363498305983045
-
+#include <iostream>
 #include <boost/asio/buffer.hpp>
 namespace mxmz {
 
@@ -76,7 +76,7 @@ class ring_buffer
    //         cerr <<  "data: tail_ " <<  ( tail_ - beg_ )  << endl;
             
             if ( empty() ) return const_buffers_1 ( head_, 0 );
-            
+
             auto tail = tail_;
             auto head = head_  == end_ ? beg_ : head_;
        
