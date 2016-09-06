@@ -62,8 +62,8 @@ private:
 	void activate() {
 		cerr << "full: " << sbuf_.full() << ", empty: " << sbuf_.empty()
 				<< endl;
-		cerr << "reading " << reading_ << " writing " << writing_ << endl;
-		cerr << "read_ec_ " << read_ec_ << " write_ec_" << write_ec_ << endl;
+		cerr << "reading: " << reading_ << " writing: " << writing_ << endl;
+		cerr << "read_ec_: " << read_ec_ << " write_ec_; " << write_ec_ << endl;
 
 		if (not sbuf_.full() and not reading_ and not finished_
 				and not read_ec_) {

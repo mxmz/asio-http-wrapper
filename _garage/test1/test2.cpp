@@ -5,6 +5,7 @@
 #include <string>
 #include <map>
 #include <functional>
+#include <memory>
 
 #include "http_parser.hxx"
 

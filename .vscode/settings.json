@@ -1,0 +1,11 @@
+// Inserire le impostazioni in questo file per sovrascrivere quelle utente e predefinite.
+{
+    "clang.cxxflags": [
+        "-std=c++11",
+        "-I${workspaceRoot}/include",
+        "-I${workspaceRoot}/_garage/asio1/include/",
+        "-I${workspaceRoot}/_garage/sample3/include/",
+        "-I${workspaceRoot}/_garage/test1/include/",
+        "-I/usr/include"
+    ]
+}

@@ -23,7 +23,7 @@ class base_handlers : public  mxmz::http_parser_base<Derived> {
 public:
     base_handlers() :
         mxmz::http_parser_base<Derived>( mxmz::http_parser_base<Derived>::Request)
-    {}
+    {} 
 
     void  on_body(const char* b, size_t l) {
         cerr << "body data: " << l << " ";
@@ -131,6 +131,7 @@ public:
 
     std::array<char, 8192> buffer;
     string response_buffer;
+    
 
     void start_read() {
         auto self(shared_from_this());
@@ -188,6 +189,9 @@ int main()
 {
 
     io_service  ios;
+    
+
+    
 
     ip::tcp::resolver resolver(ios);
     ip::tcp::endpoint endpoint = *resolver.resolve({"localhost", "2080"});
@@ -202,6 +206,9 @@ int main()
     acceptor.bind(endpoint);
     acceptor.listen();
 
+    std::string s;
+    
+
     function<void()> start_accept = [&acceptor,&socket,&start_accept]() {
         acceptor.async_accept( socket, [&acceptor,&socket,&start_accept](boost::system::error_code ec)
         {
@@ -215,6 +222,7 @@ int main()
                 cerr << "new connnection" << endl;
                 auto conn = make_shared<http_connection>( move(socket));
                 conn->start_read();
+                
             }
             start_accept();
         } );

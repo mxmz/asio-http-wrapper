@@ -1,3 +1,8 @@
 *.o
 *.swp
-
+samples/.temp
+samples/CMakeFiles/
+samples/CMakeLists.txt
+samples/Makefile
+samples/buffpipe1
+samples/cmake_install.cmake
