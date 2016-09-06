@@ -43,7 +43,7 @@ int main()
 //        dst.connect( asio::ip::tcp::endpoint( asio::ip::address::from_string("127.0.0.1"), 9002) );
 
 
-        auto pipe = std::make_shared<tcp_socket_pipe>(src, dst, 1024*10);
+        auto pipe = std::make_shared<tcp_socket_pipe>(src, dst, 102);
 
         pipe->run( [pipe](const system::error_code& read_ec, const system::error_code& write_ec) {
                     cerr << read_ec.message() << endl;

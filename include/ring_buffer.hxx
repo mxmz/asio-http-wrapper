@@ -75,12 +75,11 @@ class ring_buffer
   //          cerr << "data: head_ " <<  (head_ - beg_) << endl;
    //         cerr <<  "data: tail_ " <<  ( tail_ - beg_ )  << endl;
             
-            if ( empty() ) return const_buffers_1 ( head_, 0 );
+         //   if ( empty() ) return const_buffers_1 ( head_, 0 );
 
             auto tail = tail_;
-            auto head = head_  == end_ ? beg_ : head_;
-       
-            
+            auto head = (head_  == end_ and head_ > tail_) ? beg_ : head_;
+              
             
             if ( tail >= head )
             {
