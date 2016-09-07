@@ -17,8 +17,8 @@ class ring_buffer
         ring_buffer(size_t len) :
             beg_(new char[len] ),
             end_(beg_+ len ),
-            head_(beg_),
-            tail_(beg_)
+            a_(beg_),
+            b_(beg_)
         {
 
         }
@@ -30,30 +30,10 @@ class ring_buffer
 
         bool empty() const
         {
-            return head_ == tail_;
+            return a_ == b_;
         }
 
 
-        mutable_buffers_1 prepare() const
-        {
-
-  //           cerr << "prepare: head_ " <<  (head_ - beg_) << endl;
-  //          cerr <<  "prepare: tail_ " <<  ( tail_ - beg_ )  << endl;
-
-            auto tail = tail_ == end_ ? beg_ : tail_;
-            auto head = head_ ;
-
-            if ( tail >= head )
-            {
-                return mutable_buffers_1( tail, end_ - tail );
-            }
-            else
-            {
-                return head - tail > 1 ?
-                       mutable_buffers_1( tail, head - tail - 1 )
-                       : mutable_buffers_1( tail, 0 );
-            }
-        }
 
         bool full() const
         {
@@ -70,37 +50,59 @@ class ring_buffer
             return buffer_size(data());
         }
 
+        /* 1-----------------------------------------! 
+                ^               ^
+                a               b
+                -------data----- ------ buffer --------
+
+                ^               ^
+                b               a
+                ---- buffer---|  ------ data -----------
+
+
+        */        
+
+        mutable_buffers_1 prepare() const
+        {
+
+           //cerr << "prepare: a_ " <<  (a_ - beg_) << endl;
+           //cerr <<  "prepare: b_ " <<  ( b_ - beg_ )  << endl;
+
+                if ( b_ < a_ ) {
+                       return mutable_buffers_1( b_, a_ - b_ - 1 );
+                }  else {
+                    return a_ == beg_ ? 
+                            mutable_buffers_1( b_, end_ - b_ - 1 ):
+                            mutable_buffers_1( b_, end_ - b_  );
+                }
+        }
+
+
         const_buffers_1 data() const
         {
-  //          cerr << "data: head_ " <<  (head_ - beg_) << endl;
-   //         cerr <<  "data: tail_ " <<  ( tail_ - beg_ )  << endl;
-            
-         //   if ( empty() ) return const_buffers_1 ( head_, 0 );
+            //cerr << "data: a_ " <<  (a_ - beg_) << endl;
+            //cerr <<  "data: b_ " <<  ( b_ - beg_ )  << endl;
 
-            auto tail = tail_;
-            auto head = (head_  == end_ and head_ > tail_) ? beg_ : head_;
-              
+            if ( a_ <= b_ ) {
+                return const_buffers_1( a_, b_ - a_);
+            } else {
+                return const_buffers_1( a_, end_ - a_);
+            }
             
-            if ( tail >= head )
-            {
-                return const_buffers_1 ( head, tail - head );
-            }
-            else
-            {
-                return const_buffers_1 ( head, end_ - head );
-            }
         }
 
         void commit( size_t len )
         {
-            if ( tail_ == end_) tail_ = beg_ + len;
-            else tail_ += len;
+            b_ += len;
+            if ( b_ == end_) b_ = beg_;
+           
         }
 
         void consume(size_t len)
         {
-            if ( head_ == end_ ) head_ = beg_ + len;
-            else head_ += len;
+            a_ += len;
+            if ( a_ == end_ ) a_ = beg_;
+            
         }
 
 
@@ -111,8 +113,8 @@ class ring_buffer
 
         char* const  beg_;
         char* const  end_;
-        char*        head_;
-        char*        tail_;
+        char*        a_;
+        char*        b_;
 };
 
 

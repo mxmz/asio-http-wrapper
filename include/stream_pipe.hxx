@@ -76,7 +76,7 @@ private:
             auto _this = this->shared_from_this();
             auto handler = strand_.wrap([this,_this ](const boost::system::error_code& ec, std::size_t bytes_transferred)
             {
-                
+                cerr << "read handler" << endl;
                 if ( not ec )
                 {
                     auto bufs = sbuf_.prepare();
@@ -114,7 +114,7 @@ private:
             auto _this = this->shared_from_this();
             auto handler = strand_.wrap([this,_this ](const boost::system::error_code& ec, std::size_t bytes_transferred)
             {
-                
+                cerr << "write handler" << endl;
                 if ( not ec )
                 {
                     auto bufs = sbuf_.data();
