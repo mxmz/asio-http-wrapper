@@ -2,7 +2,7 @@
 *.swp
 samples/.temp
 samples/CMakeFiles/
-samples/CMakeLists.txt
 samples/Makefile
+samples/CMakeCache.txt
 samples/buffpipe1
 samples/cmake_install.cmake
