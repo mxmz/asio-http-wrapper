@@ -58,7 +58,6 @@ void random_test(size_t source_base_size ) {
     using boost::asio::buffer_cast;
 
     std::thread t1( [&source,&rb]{
-            return;
             auto  i = source.begin();
             while ( i != source.end() ) {
                 if ( not rb.full() ) {
@@ -70,7 +69,7 @@ void random_test(size_t source_base_size ) {
                     i += chunk;
                 } else {
    //                 cerr << "sleeping ...  source read = " << (i - source.begin() )  << endl;
-                    std::this_thread::sleep_for( std::chrono::milliseconds(rand() % 10 ));
+                    std::this_thread::sleep_for( std::chrono::milliseconds(rand() % 100 ));
                 }
             } 
              
@@ -78,7 +77,6 @@ void random_test(size_t source_base_size ) {
 
     std::string copy;
     std::thread t2( [&rb, &copy, expected = source.size() ]{
-        return;
         while ( copy.size() < expected ) {
             if ( not rb.empty() ) {
                 auto buff = *rb.data().begin();
@@ -88,7 +86,7 @@ void random_test(size_t source_base_size ) {
                 rb.consume(size);
             } else {
  //               cerr << "sleeping ...  copy written = " << copy.size()  << endl;
-                std::this_thread::sleep_for( std::chrono::milliseconds(rand() % 10 ));
+                std::this_thread::sleep_for( std::chrono::milliseconds(rand() % 100 ));
             }
 
         }
