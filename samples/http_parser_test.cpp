@@ -44,7 +44,7 @@ public:
 template < class Derived >
 struct base_handlers : public handlers_interface {
 
-    map< string, string > _headers;
+    map< string, string > headers;
 
 
 
@@ -55,12 +55,12 @@ struct base_handlers : public handlers_interface {
 
     void on_response_headers_complete( int code, const string& response_status ) {
         cerr << "res" << endl;
-        static_cast<Derived&>(*this).on_response_headers_complete(code,response_status, move(_headers) );
+        static_cast<Derived&>(*this).on_response_headers_complete(code,response_status, move(headers) );
     }
 
     void  on_request_headers_complete( const string& method, const string& request_url ) {
         cerr << "req" << endl;
-        static_cast<Derived&>(*this).on_request_headers_complete(method,request_url, move(_headers) );
+        static_cast<Derived&>(*this).on_request_headers_complete(method,request_url, move(headers) );
     };
 
     void on_error(int http_errno, const char* msg)
@@ -78,7 +78,7 @@ struct base_handlers : public handlers_interface {
     void on_header_line( const std::string& name, string&& value )
     {
         cerr << name << "  = " << value << endl;
-        _headers[name] = move(value);
+        headers[name] = move(value);
     }
 };
 
@@ -103,7 +103,7 @@ struct  my_handlers : public base_handlers<my_handlers> {
         headers = move(_headers);
     }
 
-    void  on_request_headers_complete( const string& _method, const string& _request_url, map<string,string>&& _haaders ) {
+    void  on_request_headers_complete( const string& _method, const string& _request_url, map<string,string>&& _headers ) {
         cerr << "req" << endl;
         headers = move(_headers);
         method = _method;
@@ -113,7 +113,6 @@ struct  my_handlers : public base_handlers<my_handlers> {
 
     void on_message_complete() override
     {
-//        pause();
         cerr << "Message complete (derived)" << endl;
     }
 
@@ -164,27 +163,32 @@ void test2()
 
     my_handlers handlers;
     typedef mxmz::http_parser_base<handlers_interface> my_parser; 
-    my_parser  parser1(my_parser::Request, handlers);
+    
 
     const string s1 = "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
                       "Accept:";
                       
     const string s2 = " */*\r\n"
                       "Transfer-Encoding: identity\r\n"
-                      "Content-Length: 5\r\n"
+                      "Content-Len";
+
+    const string s3 = "gth: 5\r\n"
                       "\r\n"
                       "World";
 
+    string chunks[] = { s1, s2 , s3 };
 
-    for( auto& c : s1 ) {
-        parser1.parse(&c, 1 );
+    typedef std::unique_ptr<my_parser> my_parser_ptr;
+
+    my_parser_ptr parser( new my_parser(my_parser::Request, handlers) );
+
+    for( auto& s : chunks ) {
+        parser = move( my_parser_ptr(new my_parser(parser->move_state(), handlers))  );
+        for( auto& c : s ) {
+            parser->parse(&c, 1 );
+        }
     }
-
-    my_parser  parser2( parser1.move_state(), handlers);
-
-    for( auto& c : s2 ) {
-        parser2.parse(&c, 1 );
-    }
+    
 
     dump(handlers.headers);
 

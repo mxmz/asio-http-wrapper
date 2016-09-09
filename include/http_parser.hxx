@@ -18,11 +18,12 @@ public:
                   Response,
                   Both
                 };
-    http_parser_base(mode_t, Handlers&);
-    http_parser_base(http_parser_state&&, Handlers&);
+    http_parser_base( mode_t, Handlers&);
+    http_parser_base( http_parser_state&&, Handlers& );
+    http_parser_base( const http_parser_base& ) = delete;
 protected:
-    http_parser_base(mode_t mode );
-    http_parser_base(http_parser_state&&);
+    http_parser_base( mode_t mode );
+    http_parser_base( http_parser_state&& ) ;
 public:
     void pause();
     void unpause();
@@ -32,6 +33,9 @@ public:
 
     http_parser_state&& move_state();
 };
-}
+
+
+
+} //namespace xmmz
 
 #endif

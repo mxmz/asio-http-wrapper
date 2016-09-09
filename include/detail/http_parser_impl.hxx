@@ -10,22 +10,30 @@ using namespace std;
 template< class Derived, class Tuple = pair< string, string > >
 class tuple_builder {
     Tuple   tuple;
+    Tuple   ready;
     size_t  last;
 
 
 public:
     typedef Tuple tuple_t;
-    template< size_t I, class ReadyFunc  >
-    void add_tuple_chunk( const char* buf, size_t len, ReadyFunc notify ) {
+    template< size_t I>
+    bool add_tuple_chunk( const char* buf, size_t len ) {
+        bool is_ready = false;
         if ( I == 0 and last > 0 ) {
-            tuple_t ready( move(tuple) );
-            notify( move(ready) );
+            ready = move(tuple) ;
+            tuple = move(tuple_t());
             get<I>(tuple).assign(buf,len);
+            is_ready = true;
         } else {
             get<I>(tuple).append(buf,len);
         }
         last = I;
+        return is_ready;
     }
+
+    tuple_t&& move_ready() {
+        return move(ready);
+    } 
 
     tuple_builder(): last(0) { }
     void reset() {
@@ -159,9 +167,11 @@ struct http_parser_base<Handlers>::detail   {
 
         typedef http_parser_state::tuple_t tuple_t;
 
-        self.state->template add_tuple_chunk<0>(buf,len, [&self]( tuple_t&& t) {
-                self.handlers.on_header_line( move( get<0>(t) ), move( get<1>(t) ) );
-        });
+        if ( self.state->template add_tuple_chunk<0>(buf,len) ) {
+            tuple_t t = self.state->move_ready();
+            self.handlers.on_header_line( move( get<0>(t) ), move( get<1>(t) ) );
+        }
+        
 
         // cerr << __FUNCTION__ << ": ";
         // cerr.write(buf, len) << endl;
@@ -182,9 +192,10 @@ struct http_parser_base<Handlers>::detail   {
         auto& self ( get_self(p) );
         typedef http_parser_state::tuple_t tuple_t;
 
-        self.state->template add_tuple_chunk<1>(buf,len, [&self]( tuple_t&& t) {
-                self.handlers.on_header_line( move( get<0>(t) ), move( get<1>(t) ) );
-        });
+        if ( self.state->template add_tuple_chunk<1>(buf,len) ) {
+            tuple_t t = self.state->move_ready();
+            self.handlers.on_header_line( move( get<0>(t) ), move( get<1>(t) ) );
+        }
         // cerr << __FUNCTION__ << ": ";
         // cerr.write(buf, len) << endl;
         return 0;
