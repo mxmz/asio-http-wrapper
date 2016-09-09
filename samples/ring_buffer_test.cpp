@@ -12,8 +12,6 @@ using namespace std;
 
 #include <fstream>
 
-
-
 #include "ring_buffer.hxx"
 
 
@@ -98,6 +96,7 @@ void random_test(size_t source_base_size ) {
     cerr << "checking..." << endl;   
     assert( source == copy );
     cerr << "ok" << endl;
+
     
 }
 
