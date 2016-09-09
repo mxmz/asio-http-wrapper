@@ -45,7 +45,8 @@ template < class Derived >
 struct base_handlers : public handlers_interface {
 
     map< string, string > headers;
-
+    
+    pair<int,std::string> error;
 
 
     void  on_body(const char* b, size_t l) {
@@ -66,6 +67,7 @@ struct base_handlers : public handlers_interface {
     void on_error(int http_errno, const char* msg)
     {
         cerr << "Error: " << http_errno << " " << msg << endl;
+        error = make_pair(http_errno,string(msg));
     }
     void on_message_complete()
     {
@@ -204,10 +206,93 @@ void test2()
 
 }
 
+void test3()
+{
+    cout << __FUNCTION__ << " ..." << endl; 
+
+    my_handlers handlers;
+    typedef mxmz::http_parser_base<handlers_interface> my_parser; 
+    my_parser  parser(my_parser::Request, handlers);
+
+    const string s1 = "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
+                      "Acc ept: */*\r\n"
+                      "Transfer-Encoding: identity\r\n"
+                      "Content-Length: 5\r\n"
+                      "\r\n"
+                      "World";
+
+
+    for( auto& c : s1 ) {
+        parser.parse(&c, 1 );
+    }
+
+    assert( handlers.error.first ==  24) ;
+    assert( handlers.error.second ==  "invalid character in header" ) ;
+
+    cout << __FUNCTION__ << " ok" << endl;
+
+}
+void test4()
+{
+    cout << __FUNCTION__ << " ..." << endl; 
+
+    my_handlers handlers;
+    typedef mxmz::http_parser_base<handlers_interface> my_parser; 
+    my_parser  parser(my_parser::Request, handlers);
+
+    const string s1 = "PO ST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
+                      "Accept: */*\r\n"
+                      "Transfer-Encoding: identity\r\n"
+                      "Content-Length: 5\r\n"
+                      "\r\n"
+                      "World";
+
+
+    for( auto& c : s1 ) {
+        parser.parse(&c, 1 );
+    }
+
+    assert( handlers.error.first ==  16) ;
+    assert( handlers.error.second ==  "invalid HTTP method" ) ;
+
+    cout << __FUNCTION__ << " ok" << endl;
+
+}
+void test5()
+{
+    cout << __FUNCTION__ << " ..." << endl; 
+
+    my_handlers handlers;
+    typedef mxmz::http_parser_base<handlers_interface> my_parser; 
+    my_parser  parser(my_parser::Request, handlers);
+
+    const string s1 = "POST _/post_identity_body_world?q=search#hey HTTP/1.1\r\n"
+                      "Accept: */*\r\n"
+                      "Transfer-Encoding: identity\r\n"
+                      "Content-Length: 5\r\n"
+                      "\r\n"
+                      "World";
+
+
+    for( auto& c : s1 ) {
+        parser.parse(&c, 1 );
+    }
+
+    assert( handlers.error.first ==  17) ;
+    assert( handlers.error.second ==  "invalid URL" ) ;
+
+    cout << __FUNCTION__ << " ok" << endl;
+
+}
+
+
 
 int main() {
     test1();
     test2();
+    test3();
+    test4();
+    test5();
 }
 
 #include "detail/http_parser_impl.hxx"
