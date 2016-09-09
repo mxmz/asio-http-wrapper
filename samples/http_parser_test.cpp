@@ -45,6 +45,7 @@ template < class Derived >
 struct base_handlers : public handlers_interface {
 
     map< string, string > headers;
+    string body;
     
     pair<int,std::string> error;
 
@@ -52,6 +53,7 @@ struct base_handlers : public handlers_interface {
     void  on_body(const char* b, size_t l) {
         cerr << "body data: " << l << " ";
         cerr.write(b, l) << endl;
+        body.append(b,l);
     }
 
     void on_response_headers_complete( int code, const string& response_status ) {
@@ -121,6 +123,20 @@ struct  my_handlers : public base_handlers<my_handlers> {
 
 };
 
+typedef mxmz::http_parser_base<handlers_interface> my_parser; 
+
+void readparse( const string&s, my_parser& parser ) {
+    float bufsize = 1;
+    const char* p = s.data();
+    const char* end = p + s.size();
+    while( p != end ) {
+          long int len = size_t(bufsize); bufsize *= 1.266;
+          len = min( len , (end-p) );
+          cerr << "readparse: len " << len << endl;
+          parser.parse( p, len );
+          p += len;
+    }
+}
 
 
 void test1()
@@ -128,7 +144,7 @@ void test1()
     cout << __FUNCTION__ << " ..." << endl; 
 
     my_handlers handlers;
-    typedef mxmz::http_parser_base<handlers_interface> my_parser; 
+    
     my_parser  parser(my_parser::Request, handlers);
 
     const string s1 = "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
@@ -138,10 +154,7 @@ void test1()
                       "\r\n"
                       "World";
 
-
-    for( auto& c : s1 ) {
-        parser.parse(&c, 1 );
-    }
+    readparse(s1,parser);
 
     dump(handlers.headers);
 
@@ -150,6 +163,7 @@ void test1()
     assert( handlers.headers["Transfer-Encoding"] == "identity" );
     assert( handlers.method == "POST" );
     assert( handlers.request_url == "/post_identity_body_world?q=search#hey" );
+    assert( handlers.body == "World" );
 
 
 
@@ -186,9 +200,7 @@ void test2()
 
     for( auto& s : chunks ) {
         parser = move( my_parser_ptr(new my_parser(parser->move_state(), handlers))  );
-        for( auto& c : s ) {
-            parser->parse(&c, 1 );
-        }
+        readparse(s,*parser);
     }
     
 
@@ -222,9 +234,7 @@ void test3()
                       "World";
 
 
-    for( auto& c : s1 ) {
-        parser.parse(&c, 1 );
-    }
+    readparse(s1,parser);
 
     assert( handlers.error.first ==  24) ;
     assert( handlers.error.second ==  "invalid character in header" ) ;
@@ -248,9 +258,7 @@ void test4()
                       "World";
 
 
-    for( auto& c : s1 ) {
-        parser.parse(&c, 1 );
-    }
+    readparse(s1,parser);
 
     assert( handlers.error.first ==  16) ;
     assert( handlers.error.second ==  "invalid HTTP method" ) ;
@@ -274,9 +282,7 @@ void test5()
                       "World";
 
 
-    for( auto& c : s1 ) {
-        parser.parse(&c, 1 );
-    }
+    readparse(s1,parser);
 
     assert( handlers.error.first ==  17) ;
     assert( handlers.error.second ==  "invalid URL" ) ;
