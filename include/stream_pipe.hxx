@@ -20,7 +20,7 @@ int debug_count_write = 0;
 using std::cerr;
 using std::endl;
 
-#define cerr if(1) cerr
+#define cerr if(debug) cerr
 
 namespace mxmz { //
 
@@ -29,6 +29,7 @@ template< class SrcStream,
         class Strand = boost::asio::io_service::strand >
 class stream_pipe_tmpl: public std::enable_shared_from_this<stream_pipe_tmpl<SrcStream,DstStream,Strand>>
 {
+    static bool debug;
 
 public:
     stream_pipe_tmpl( SrcStream& src, DstStream& dst, size_t buffer_size )
@@ -79,13 +80,14 @@ private:
                 cerr << "read handler" << endl;
                 if ( not ec )
                 {
-                    auto bufs = sbuf_.prepare();
-                    auto rv = src_stream_.read_some(bufs, read_ec_ );
-                    cerr << "**** " << buffer_size(bufs) <<  " " << read_ec_  << endl;
-                    assert( buffer_size(bufs) > 0 );
-                    cerr << "read: " << rv << " is_writing_: " << writing_ << endl;
-                    sbuf_.commit(rv);
-                    debug_count_read += rv;
+                   // auto bufs = sbuf_.prepare();
+                   // auto rv = src_stream_.read_some(bufs, read_ec_ );
+                   // cerr << "**** " << buffer_size(bufs) <<  " " << read_ec_  << endl;
+                   // assert( buffer_size(bufs) > 0 );
+                   //  cerr << "read: " << rv << " is_writing_: " << writing_ << endl;
+                   // sbuf_.commit(rv);
+                    sbuf_.commit(bytes_transferred);
+                    debug_count_read += bytes_transferred;
                     reading_ = false;
                     activate();
 
@@ -97,7 +99,9 @@ private:
                     activate();
                 }
             });
-            src_stream_.async_read_some( boost::asio::null_buffers(), handler );
+            //src_stream_.async_read_some( boost::asio::null_buffers(), handler );
+            auto bufs = sbuf_.prepare();
+            src_stream_.async_read_some( bufs, handler );
             reading_ = true;
         }
 
@@ -158,6 +162,13 @@ private:
     completion_handler completion_;
     bool      finished_;
 };
+
+
+
+template< class SrcStream,  
+        class DstStream, 
+        class Strand >
+bool stream_pipe_tmpl<SrcStream,DstStream,Strand>::debug;
 
 
 }
