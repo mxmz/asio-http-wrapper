@@ -121,12 +121,12 @@ private:
                 cerr << "write handler" << endl;
                 if ( not ec )
                 {
-                    auto bufs = sbuf_.data();
-                    assert( buffer_size(bufs) > 0 );
-                    auto rv = dst_stream_.write_some( bufs, write_ec_ );
-                    cerr << "write " << rv << " is_reading_: " << reading_ << endl;
-                    sbuf_.consume(rv);
-                    debug_count_write += rv;
+                    //auto bufs = sbuf_.data();
+                    //assert( buffer_size(bufs) > 0 );
+                    //auto rv = dst_stream_.write_some( bufs, write_ec_ );
+                    //cerr << "write " << rv << " is_reading_: " << reading_ << endl;
+                    sbuf_.consume(bytes_transferred);
+                    debug_count_write += bytes_transferred;
                     writing_ = false;
                     activate();
                 }
@@ -137,7 +137,8 @@ private:
                     finish();
                 }
             });
-            dst_stream_.async_write_some( boost::asio::null_buffers(), handler );
+            auto bufs = sbuf_.data();
+            dst_stream_.async_write_some( bufs, handler );
             writing_ = true;
         }
 

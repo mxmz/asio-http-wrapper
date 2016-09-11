@@ -15,7 +15,6 @@ using namespace std;
 
 
 template< typename Type >
-
 Type getenv(const char* name ) {
     const char * val = getenv(name);
     if ( val == nullptr ) {
