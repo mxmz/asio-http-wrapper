@@ -20,11 +20,15 @@ struct http_request_header {
     const map<string,string> headers;
 };
 
-struct http_response_header {
-    const int                code;
-    const string             message;
-    const map<string,string> headers;
-};
+
+  
+
+
+
+typedef std::function< void ( boost::system::error_code ec ) >                  write_header_completion_t;
+
+typedef std::function< void ( boost::system::error_code ec, std::size_t bytes_transferred ) > write_body_completion_t;
+
 
 
 template< class SrcStream >
@@ -36,23 +40,23 @@ public:
     
     http_inbound_connection( SrcStream&& socket );
 
-    typedef std::unique_ptr<http_request_header>  http_request_header_ptr;  
-    typedef std::unique_ptr<http_response_header> http_response_header_ptr;
+    struct http_request_header {
+        const string method;
+        const string url;
+        const map<string,string> headers;
+    };
+
+    typedef std::unique_ptr<http_request_header>  http_request_header_ptr;
 
     typedef std::function< void ( boost::system::error_code ec, http_request_header_ptr ) > read_header_completion_t;
-    typedef std::function< void ( boost::system::error_code ec ) >                  write_header_completion_t;
-
-    typedef std::function< void ( boost::system::error_code ec, std::size_t bytes_transferred ) > read_body_completion_t;
-
-    typedef std::function< void ( boost::system::error_code ec, std::size_t bytes_transferred ) > write_body_completion_t;
-
     void async_read_request_header( read_header_completion_t );
 
+    typedef std::function< void ( boost::system::error_code ec, std::size_t bytes_transferred ) > read_body_completion_t;
     void async_read_some( boost::asio::mutable_buffers_1, read_body_completion_t );
 
-    void async_write_response_header( http_response_header_ptr, write_header_completion_t );
+//    void async_write_response_header( http_response_header_ptr, write_header_completion_t );
 
-    void async_write_some( boost::asio::mutable_buffers_1, write_body_completion_t );
+//    void async_write_some( boost::asio::mutable_buffers_1, write_body_completion_t );
 
 };
 

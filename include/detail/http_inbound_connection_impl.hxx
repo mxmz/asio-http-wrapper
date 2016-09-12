@@ -3,6 +3,7 @@
 #include <memory>
 #include "http_parser.hxx"
 #include <cassert>
+#include <cstring>
 
 namespace mxmz {
 
@@ -18,24 +19,49 @@ class http_inbound_connection<SrcStream>::detail :
 
  SrcStream  stream;
 
- map< string, string > headers;
+ struct request_state {
+        map< string, string >   headers;
+        
+        http_request_header_ptr  header_ready;
 
- http_request_header_ptr current_request;
+        string                  body_consumable;
+        size_t                  body_consumed;
+        
+        request_state() : body_consumed() {}
+     
+        size_t consume_body(boost::asio::mutable_buffers_1 buff) {
+            if ( body_consumable.size() > body_consumed ) {
+                size_t minlen = min( buffer_size(buff), body_consumable.size() - body_consumed);
+                char* output = buffer_cast<char*>(buff);
+                memcpy( output, body_consumable.data() + body_consumed, minlen  );
+                body_consumed += minlen;
+                return minlen;
+            }
+            else {
+                return 0;
+            }
+        }
+    }; 
 
- std::array<char, 8192> buffer;
-
+ typedef unique_ptr<request_state>  request_state_ptr; 
+ 
+ request_state_ptr current;
  
 
- string  buffered_body;
- size_t buffered_body_consumed;
+ std::array<char, 8192>  buffer;
+ mutable_buffers_1       body_sink;
+ 
+
+ 
 
 public:
     detail( detail& ) = delete;
     detail( SrcStream&& s ) :
         base_t( base_t::Request ),
-        stream( move(s))
+        stream( move(s)),
+        body_sink((char*)"",0)
     {
-        reset();
+               current = request_state_ptr( new request_state() );   
     }
 
 
@@ -45,8 +71,8 @@ public:
     }
 
     void  on_request_headers_complete( string&& method, const string&& request_url ) {
-        http_request_header_ptr r( new http_request_header{move(method), move(request_url), move(headers)} );
-        current_request = move(r);
+        http_request_header_ptr r( new http_request_header{move(method), move(request_url), move(current->headers)} );
+        current->header_ready = move(r);
     };
 
     void on_error(int http_errno, const char* msg)
@@ -63,54 +89,54 @@ public:
     }
     void on_header_line( const std::string& name, string&& value )
     {
-        headers[name] = move(value);
+        current->headers[name] = move(value);
     }
 
     void reset() {
-        current_request = http_request_header_ptr();
-        headers.clear();
-        buffered_body_consumed = 0;
-        reset_on_body();
+        current = request_state_ptr( new request_state() );   
         base_t::reset();
     }
-    void reset_on_body() {
-        on_body = [this]( const char* p, size_t l) {
-                buffered_body.append(p,l);
-        };
-    }
+
+    
 
 
     void 
     async_read_request_header( read_header_completion_t  comp ) {
-        if ( current_request ) {
-            stream.get_io_service().post([this,comp]{
+        if ( current->header_ready ) {
+            stream.get_io_service().post( [c = move(comp), r = move(current->header_ready)](){
                 boost::system::error_code ec;
-                comp( ec, move(current_request));
+               //c(ec, move(r));
             });
         } else {
             stream.async_read_some(boost::asio::buffer(buffer),
-                    [this,comp](boost::system::error_code ec, std::size_t bytes_transferred)
+                    [this,c = move(comp)](boost::system::error_code ec, std::size_t bytes_transferred)
             {
                 if (!ec)
                 {
                     size_t read = this->parse( buffer.data(), bytes_transferred );
                     assert( read == bytes_transferred );
-                    if ( current_request ) {
-                        boost::system::error_code ec;
-                        comp( ec, move(current_request));
-                    }
-                    else {
-                        async_read_request_header(comp);
-                    }  
+                    async_read_request_header(move(c));
                 } else {
-                    comp( ec, nullptr );
+                    c( ec, nullptr );
                 }
             } );
         } 
     }
 
-    void async_read_some( boost::asio::mutable_buffers_1 buff, read_body_completion_t comp ){
-        if ( size_t consumed = consume_buffered_body(buff)) {
+    void on_body( const char* p, size_t l) {
+            if( size_t bslen = buffer_size( body_sink ) ) {
+                    size_t sinklen = min( l, bslen );
+                    char*  bsp = buffer_cast<char*>( body_sink ); 
+                    memcpy( bsp, p, sinklen );
+                    body_sink = mutable_buffers_1( bsp + sinklen, bslen - sinklen );
+                    p += sinklen;
+                    l -= sinklen;
+            }
+            current->body_consumable.append(p,l);
+    }
+
+    void async_read_some( mutable_buffers_1 buff, read_body_completion_t comp ){
+        if ( size_t consumed = current->consume_body(buff)) {
             stream.get_io_service().post([this,comp,consumed]{
                 boost::system::error_code ec;
                 comp( ec, consumed );
@@ -122,14 +148,11 @@ public:
             {
                 if (!ec)
                 {
-                    size_t bytes_emitted = 0;
-                    on_body = [this,&buff,&bytes_emitted ]( const char* p, size_t l) {
-                            char* output = buffer_cast<char*>(buff);
-                            memcpy( output, p, l );
-                            bytes_emitted = l;
-                    };   
+                    body_sink = buff;      
                     size_t read = this->parse( buffer.data(), bytes_transferred );
                     assert( read == bytes_transferred );
+                    size_t bytes_emitted = buffer_size(buff) - buffer_size(body_sink);
+                    body_sink = mutable_buffers_1((char*)"",0);
                     comp( ec, bytes_emitted );
                 } else {
                     comp( ec, 0 );
@@ -138,22 +161,9 @@ public:
         }
     }
 
-    size_t consume_buffered_body(boost::asio::mutable_buffers_1 buff) {
-        if ( buffered_body.size() > buffered_body_consumed ) {
-            size_t minlen = min( buffer_size(buff), buffered_body.size() - buffered_body_consumed);
-            char* output = buffer_cast<char*>(buff);
-            memcpy( output, buffered_body.data() + buffered_body_consumed, minlen  );
-            buffered_body_consumed += minlen;
-            return minlen;
-        }
-        else {
-            return 0;
-        }
-
-    }
-
     
-    function< void( const char*, size_t ) >    on_body;
+    
+    
 };
 
 

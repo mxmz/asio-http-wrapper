@@ -8,6 +8,18 @@ namespace mxmz {
 
 class http_parser_state;
 
+/*
+    Handlers must implement:
+
+    -   on_error( int , string )
+    -   on_header_line( string, string )
+    -   on_body( const char* , size_t )
+    -   on_response_headers_complete( int, string )
+    -   on_request_headers_complete( method, request_url )
+    -   on_message_begin()
+    -   on_message_complete()    
+*/
+
 template <class Handlers>
 class http_parser_base {
     class detail;
@@ -18,7 +30,7 @@ public:
                   Response,
                   Both
                 };
-    http_parser_base( mode_t, Handlers&);
+    http_parser_base( mode_t, Handlers& );
     http_parser_base( http_parser_state&&, Handlers& );
     http_parser_base( const http_parser_base& ) = delete;
 protected:
@@ -29,7 +41,7 @@ public:
     void unpause();
 
     void reset();
-    size_t parse(const char* buffer, size_t len);
+    size_t parse(const char* buffer, size_t len );
 
     http_parser_state&& move_state();
 };

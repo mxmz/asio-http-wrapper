@@ -88,22 +88,21 @@ struct http_parser_base<Handlers>::detail   {
     typedef http_parser_base<Handlers> owner_type;
 
     Handlers& handlers;
-    std::unique_ptr<http_parser_state> state;
     struct http_parser_settings settings;
-
+    http_parser_state           state;
 
     detail( mode_t mode, Handlers& hndls)
         : handlers(hndls),
-          state( std::unique_ptr<http_parser_state>(new http_parser_state(mode2type(mode))) ) 
+          state( mode2type(mode)) 
     {
-        state->parser->data = this;
+        state.parser->data = this;
         setup();
     }
     detail( http_parser_state&& that_state, Handlers& hndls)
         : handlers(hndls),
-          state( std::unique_ptr<http_parser_state>(new http_parser_state(move(that_state)))) 
+          state( move(that_state)) 
     {
-        state->parser->data = this;
+        state.parser->data = this;
         setup();
     }
     void setup() {
@@ -118,8 +117,8 @@ struct http_parser_base<Handlers>::detail   {
     }
 
     void reset() {
-        state->reset(); 
-        state->parser->data = this;
+        state.reset(); 
+        state.parser->data = this;
     }
 
     ~detail() {
@@ -128,7 +127,7 @@ struct http_parser_base<Handlers>::detail   {
 
     size_t parse(const char* buffer, size_t len)
     {
-        http_parser* parser = state->parser;
+        http_parser* parser = state.parser;
         //cerr << http_errno_name(http_errno(parser->http_errno)) << endl;
         //http_parser_pause( parser, 0 );
         size_t rv = http_parser_execute(parser, &settings, buffer, len);
@@ -144,14 +143,14 @@ struct http_parser_base<Handlers>::detail   {
     }
 
     void pause() {
-        http_parser_pause( state->parser , 1 );
+        http_parser_pause( state.parser , 1 );
     }
     void unpause() {
-        http_parser_pause( state->parser , 0 );
+        http_parser_pause( state.parser , 0 );
     }
 
     http_parser_state&& move_state() {
-        return move( *state );
+        return move( state );
     }
 
     /* callback functions */
@@ -167,8 +166,8 @@ struct http_parser_base<Handlers>::detail   {
 
         typedef http_parser_state::tuple_t tuple_t;
 
-        if ( self.state->template add_tuple_chunk<0>(buf,len) ) {
-            tuple_t t = self.state->move_ready();
+        if ( self.state.template add_tuple_chunk<0>(buf,len) ) {
+            tuple_t t = self.state.move_ready();
             self.handlers.on_header_line( move( get<0>(t) ), move( get<1>(t) ) );
         }
         
@@ -192,8 +191,8 @@ struct http_parser_base<Handlers>::detail   {
         auto& self ( get_self(p) );
         typedef http_parser_state::tuple_t tuple_t;
 
-        if ( self.state->template add_tuple_chunk<1>(buf,len) ) {
-            tuple_t t = self.state->move_ready();
+        if ( self.state.template add_tuple_chunk<1>(buf,len) ) {
+            tuple_t t = self.state.move_ready();
             self.handlers.on_header_line( move( get<0>(t) ), move( get<1>(t) ) );
         }
         // cerr << __FUNCTION__ << ": ";
@@ -236,10 +235,10 @@ struct http_parser_base<Handlers>::detail   {
         
         if ( HTTP_PARSER_ERRNO(p) == HPE_OK && p->status_code == 0 ) {
             string method( http_method_str((http_method)p->method) );
-            string request_url ( move( self.state->request_url ) );
+            string request_url ( move( self.state.request_url ) );
             self.handlers.on_request_headers_complete( move(method), move(request_url) );
         } else if ( HTTP_PARSER_ERRNO(p) == HPE_OK && p->status_code != 0 ) {
-            string response_status( move( self.state->response_status ) );
+            string response_status( move( self.state.response_status ) );
             self.handlers.on_response_headers_complete( p->status_code, move(response_status) );
         }
 
@@ -265,7 +264,7 @@ struct http_parser_base<Handlers>::detail   {
     {
         // cerr << __FUNCTION__ << ": ";
         // cerr.write(buf, len) << endl;
-        get_self(p).state->response_status.append( buf, len );
+        get_self(p).state.response_status.append( buf, len );
         return 0;
     }
 
@@ -273,7 +272,7 @@ struct http_parser_base<Handlers>::detail   {
     {
         // cerr << __FUNCTION__ << ": ";
         // cerr.write(buf, len) << endl;
-        get_self(p).state->request_url.append( buf, len );
+        get_self(p).state.request_url.append( buf, len );
         return 0;
     }
 };
