@@ -20,14 +20,10 @@ struct http_request_header {
     const map<string,string> headers;
 };
 
-
   
+//ypedef std::function< void ( boost::system::error_code ec ) >                  write_header_completion_t;
 
-
-
-typedef std::function< void ( boost::system::error_code ec ) >                  write_header_completion_t;
-
-typedef std::function< void ( boost::system::error_code ec, std::size_t bytes_transferred ) > write_body_completion_t;
+//typedef std::function< void ( boost::system::error_code ec, std::size_t bytes_transferred ) > write_body_completion_t;
 
 
 
@@ -40,11 +36,6 @@ public:
     
     http_inbound_connection( SrcStream&& socket );
 
-    struct http_request_header {
-        const string method;
-        const string url;
-        const map<string,string> headers;
-    };
 
     typedef std::unique_ptr<http_request_header>  http_request_header_ptr;
 

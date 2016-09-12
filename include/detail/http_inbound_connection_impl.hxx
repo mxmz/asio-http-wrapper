@@ -103,9 +103,9 @@ public:
     void 
     async_read_request_header( read_header_completion_t  comp ) {
         if ( current->header_ready ) {
-            stream.get_io_service().post( [c = move(comp), r = move(current->header_ready)](){
+            stream.get_io_service().post( [this,comp](){
                 boost::system::error_code ec;
-               //c(ec, move(r));
+               comp(ec, move(current->header_ready));
             });
         } else {
             stream.async_read_some(boost::asio::buffer(buffer),
