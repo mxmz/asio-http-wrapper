@@ -26,6 +26,7 @@ struct body_reader : public enable_shared_from_this<body_reader> {
     void start_read_body() {
             auto _this = shared_from_this(); 
             conn->async_read_some( buffer(buf, 1024 ), [this,_this]( boost::system::error_code ec, size_t bytes_transferred) {
+                cerr  << "read " << bytes_transferred << endl;
                     if ( ! ec ) {
                         cerr.write( buf, bytes_transferred);
                         start_read_body();
@@ -71,7 +72,7 @@ void test1() {
                
                 auto conn = make_shared<conn_t>( move(socket) ) ;
                 conn->async_read_request_header( [conn]( boost::system::error_code ec, conn_t::http_request_header_ptr h  ) {
-                    cerr << ec << endl;
+                    cerr << ec <<  endl;
                         cerr << h->method << endl;
                         cerr << h->url << endl;
                         auto rb = make_shared<body_reader>();
@@ -95,12 +96,14 @@ void test1() {
         size_t max_micro_sleep = 5;
 
         conn.connect( ip::tcp::endpoint( ip::address::from_string("127.0.0.1"), srv_port) );
-         const string source = "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
+        string source = "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
                       "Accept: */*\r\n"
                       "Transfer-Encoding: identity\r\n"
                       "Content-Length: 5\r\n"
                       "\r\n"
                       "World";
+
+                      source += source;
 
         const char* p = source.data();
         const char* end = p + source.size();

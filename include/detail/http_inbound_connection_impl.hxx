@@ -10,12 +10,15 @@ namespace mxmz {
 using namespace std;
 using boost::asio::mutable_buffers_1;
 using boost::asio::buffer_cast;
+using boost::asio::mutable_buffer;
+using boost::asio::const_buffers_1;;
 
 template< class SrcStream >
 class http_inbound_connection<SrcStream>::detail : 
     public  mxmz::http_parser_base<http_inbound_connection<SrcStream>::detail >
 {
     typedef mxmz::http_parser_base<http_inbound_connection<SrcStream>::detail > base_t;
+    
 
  SrcStream  stream;
 
@@ -24,22 +27,16 @@ class http_inbound_connection<SrcStream>::detail :
         
         http_request_header_ptr  header_ready;
 
-        string                  body_consumable;
+        string                  body;
         size_t                  body_consumed;
         
         request_state() : body_consumed() {}
      
         size_t consume_body(boost::asio::mutable_buffers_1 buff) {
-            if ( body_consumable.size() > body_consumed ) {
-                size_t minlen = min( buffer_size(buff), body_consumable.size() - body_consumed);
-                char* output = buffer_cast<char*>(buff);
-                memcpy( output, body_consumable.data() + body_consumed, minlen  );
-                body_consumed += minlen;
-                return minlen;
-            }
-            else {
-                return 0;
-            }
+            size_t consumed = buffer_copy( buff, const_buffer(body.data(), body.size()) + body_consumed  );
+            body_consumed += consumed;
+            cerr << "consume stored: " << consumed << endl;
+            return consumed;
         }
     }; 
 
@@ -47,10 +44,11 @@ class http_inbound_connection<SrcStream>::detail :
  
  request_state_ptr current;
  
+ typedef std::function< size_t(const char*, size_t )> body_consumer_t;
 
  std::array<char, 8192>  buffer;
- mutable_buffers_1       body_sink;
- 
+
+body_consumer_t   body_consumer;
 
  
 
@@ -58,8 +56,7 @@ public:
     detail( detail& ) = delete;
     detail( SrcStream&& s ) :
         base_t( base_t::Request ),
-        stream( move(s)),
-        body_sink((char*)"",0)
+        stream( move(s))
     {
                current = request_state_ptr( new request_state() );   
     }
@@ -93,7 +90,7 @@ public:
     }
 
     void reset() {
-        current = request_state_ptr( new request_state() );   
+       current = request_state_ptr( new request_state() );   
         base_t::reset();
     }
 
@@ -123,16 +120,15 @@ public:
         } 
     }
 
+    
+
     void on_body( const char* p, size_t l) {
-            if( size_t bslen = buffer_size( body_sink ) ) {
-                    size_t sinklen = min( l, bslen );
-                    char*  bsp = buffer_cast<char*>( body_sink ); 
-                    memcpy( bsp, p, sinklen );
-                    body_sink = mutable_buffers_1( bsp + sinklen, bslen - sinklen );
-                    p += sinklen;
-                    l -= sinklen;
+
+            size_t consumed = body_consumer ? body_consumer( p, l  ) : 0 ;
+            if ( consumed < l ) {
+                    current->body.append(p + consumed, l - consumed );
             }
-            current->body_consumable.append(p,l);
+            body_consumer = body_consumer_t();
     }
 
     void async_read_some( mutable_buffers_1 buff, read_body_completion_t comp ){
@@ -148,12 +144,17 @@ public:
             {
                 if (!ec)
                 {
-                    body_sink = buff;      
+                    size_t consumed = 0;
+                    body_consumer = [this,&buff,&consumed]( const char* p, size_t l)->size_t {
+                            consumed = buffer_copy( buff, const_buffers_1(p,l) );
+                            cerr << "consume direct: " << consumed << endl;
+                            return consumed;
+                    };
+                   
                     size_t read = this->parse( buffer.data(), bytes_transferred );
                     assert( read == bytes_transferred );
-                    size_t bytes_emitted = buffer_size(buff) - buffer_size(body_sink);
-                    body_sink = mutable_buffers_1((char*)"",0);
-                    comp( ec, bytes_emitted );
+                    
+                    comp( ec, consumed );
                 } else {
                     comp( ec, 0 );
                 }
