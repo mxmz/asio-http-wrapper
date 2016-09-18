@@ -15,16 +15,33 @@ class ring_buffer
     public:
 
         ring_buffer(size_t len) :
-            beg_(new char[len] ),
-            end_(beg_+ len ),
+            beg_(new char[len + 2 ] ),
+            end_(beg_+ len + 2 ),
             a_(beg_),
             b_(beg_)
         {
 
         }
         ~ring_buffer() {
-            delete beg_;
+            delete[] beg_;
         }
+
+        ring_buffer( ring_buffer&& that ) :
+            beg_(new char[2] ),
+            end_(beg_ + 2 ),
+            a_(beg_),
+            b_(beg_)
+        {   swap(that);
+        }
+
+        void swap( ring_buffer& that ) {
+            std::swap( const_cast<char*&>(beg_), const_cast<char*&>(that.beg_) );
+            std::swap( const_cast<char*&>(end_), const_cast<char*&>(that.end_) );
+            std::swap( a_, that.a_ );
+            std::swap( b_, that.b_ );
+        }
+
+        ring_buffer( const ring_buffer& ) = delete ;
 
         ring_buffer() = delete;
 

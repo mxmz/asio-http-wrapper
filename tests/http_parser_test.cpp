@@ -101,11 +101,13 @@ struct  my_handlers : public base_handlers<my_handlers> {
     string method;
     map< string, string > headers;
 
+    using base_handlers<my_handlers>::on_response_headers_complete;
     void on_response_headers_complete( int _code, const string& _response_status, map<string,string>&& _headers ) {
         cerr << "res" << endl;
         headers = move(_headers);
     }
 
+    using base_handlers<my_handlers>::on_request_headers_complete;
     void  on_request_headers_complete( const string& _method, const string& _request_url, map<string,string>&& _headers ) {
         cerr << "req" << endl;
         headers = move(_headers);
@@ -118,18 +120,17 @@ struct  my_handlers : public base_handlers<my_handlers> {
     {
         cerr << "Message complete (derived)" << endl;
     }
-
-
 };
 
-typedef mxmz::http_parser_base<handlers_interface> my_parser; 
 
-void readparse( const string&s, my_parser& parser ) {
+ 
+template< class Parser >
+void readparse( const string&s, Parser& parser ) {
     float bufsize = 1;
     const char* p = s.data();
     const char* end = p + s.size();
     while( p != end ) {
-          long int len = size_t(bufsize); bufsize *= 1.266;
+          long int len = size_t(bufsize); bufsize *= 1.266; bufsize += rand() % 10 ;
           len = min( len , (end-p) );
           cerr << "readparse: len " << len << endl;
           parser.parse( p, len );
@@ -140,8 +141,9 @@ void readparse( const string&s, my_parser& parser ) {
 
 void test1()
 {
-    cout << __FUNCTION__ << " ..." << endl; 
+ 
 
+    typedef mxmz::http_parser_base<handlers_interface> my_parser;
     my_handlers handlers;
     
     my_parser  parser(my_parser::Request, handlers);
@@ -166,7 +168,7 @@ void test1()
 
 
 
-    cout << __FUNCTION__ << " ok" << endl;
+
 
 }
 
@@ -174,7 +176,7 @@ void test1()
 
 void test2()
 {
-    cout << __FUNCTION__ << " ..." << endl; 
+ 
 
     my_handlers handlers;
     typedef mxmz::http_parser_base<handlers_interface> my_parser; 
@@ -198,7 +200,8 @@ void test2()
     my_parser_ptr parser( new my_parser(my_parser::Request, handlers) );
 
     for( auto& s : chunks ) {
-        parser = move( my_parser_ptr(new my_parser(parser->move_state(), handlers))  );
+        auto current = move(parser);
+        parser = move( my_parser_ptr(new my_parser(current->move_state(), handlers))  );
         readparse(s,*parser);
     }
     
@@ -213,13 +216,13 @@ void test2()
 
 
 
-    cout << __FUNCTION__ << " ok" << endl;
+
 
 }
 
 void test3()
 {
-    cout << __FUNCTION__ << " ..." << endl; 
+ 
 
     my_handlers handlers;
     typedef mxmz::http_parser_base<handlers_interface> my_parser; 
@@ -238,14 +241,14 @@ void test3()
     assert( handlers.error.first ==  24) ;
     assert( handlers.error.second ==  "invalid character in header" ) ;
 
-    cout << __FUNCTION__ << " ok" << endl;
+
 
 }
 void test4()
 {
-    cout << __FUNCTION__ << " ..." << endl; 
+ 
 
-    my_handlers handlers;
+    my_handlers handlers;  
     typedef mxmz::http_parser_base<handlers_interface> my_parser; 
     my_parser  parser(my_parser::Request, handlers);
 
@@ -262,12 +265,12 @@ void test4()
     assert( handlers.error.first ==  16) ;
     assert( handlers.error.second ==  "invalid HTTP method" ) ;
 
-    cout << __FUNCTION__ << " ok" << endl;
+
 
 }
 void test5()
 {
-    cout << __FUNCTION__ << " ..." << endl; 
+ 
 
     my_handlers handlers;
     typedef mxmz::http_parser_base<handlers_interface> my_parser; 
@@ -286,18 +289,145 @@ void test5()
     assert( handlers.error.first ==  17) ;
     assert( handlers.error.second ==  "invalid URL" ) ;
 
-    cout << __FUNCTION__ << " ok" << endl;
 
+
+}
+
+struct  my_parser_pausing :   public base_handlers<my_parser_pausing>,
+                                public mxmz::http_parser_base<my_parser_pausing>
+{
+    int code;
+    string  response_status;
+    string request_url;
+    string method;
+    map< string, string > headers;
+    string body;
+
+    using base_handlers<my_parser_pausing>::on_response_headers_complete;
+    void on_response_headers_complete( int _code, const string& _response_status, map<string,string>&& _headers ) {
+        cerr << "res" << endl;
+        headers = move(_headers);
+    }
+
+    using base_handlers<my_parser_pausing>::on_request_headers_complete;
+    void  on_request_headers_complete( const string& _method, const string& _request_url, map<string,string>&& _headers ) {
+        cerr << __PRETTY_FUNCTION__ << endl;
+        cerr << "req" << endl;
+        headers = move(_headers);
+        method = _method;
+        request_url = _request_url;
+
+        this->pause();  // <--------------- pausing when headers are ready; cfr.  test_readparse_pausing and test6
+
+    };
+
+    void on_message_complete() override
+    {
+        cerr << "Message complete (derived)" << endl;
+    }
+    void on_message_begin() {
+      cerr << __PRETTY_FUNCTION__ << endl;
+      //pause();
+    }
+    void  on_body(const char* b, size_t l) {
+        cerr << __PRETTY_FUNCTION__ << " " << l << endl;
+        body.append(b,l);
+        //pause();
+       
+    }
+
+    using mxmz::http_parser_base<my_parser_pausing>::http_parser_base;
+};
+
+std::string make_random_string(int c, int from,  int to ) {
+    std::string s;
+    s.reserve(c);
+    for ( int i = 0; i < c; ++i) {
+          s.push_back( from  + rand() % (to-from) );
+    }
+    return s;
 }
 
 
 
+bool test_readparse_pausing( const string&s, my_parser_pausing& parser ) {
+    bool did_pause = false;
+    float bufsize = 1;
+    const char* p = s.data();
+    const char* end = p + s.size();
+    size_t eoh = s.find("\r\n\r\n") + 4;
+    size_t parsed = 0;
+    while( p != end ) {
+          long int len = size_t(bufsize); bufsize *= 1.666;
+          len = min( len , (end-p) );
+          cerr << "readparse: len " << len <<  " " << parser.paused() << endl;
+          long int consumed = parser.parse( p, len );
+          cerr << "readparse: consumed " << consumed <<  " " << parser.paused() << endl;
+          if ( consumed < len ) {
+              assert ( parser.paused() );
+              assert( parsed + consumed == eoh - 1 ) ;
+              parser.unpause();
+              consumed += parser.parse( p + consumed, len - consumed );
+              assert( consumed == len );
+              did_pause = true;
+          }
+          parsed += consumed;
+          p += len;
+    }
+    cerr << parsed << "   " << s.size() << endl;
+    assert( parsed == s.size() );
+    return did_pause;
+}
+ 
+void test6()
+{      
+    my_parser_pausing  parser(my_parser_pausing::Request);
+
+    auto b1 = make_random_string( 1042 + rand() % 1042, 0, 256 );
+    auto b2 = make_random_string( 1042 + rand() % 42, 0, 256  );
+
+    string bodylen = boost::lexical_cast<string>( b1.size() + b2.size() );
+
+    auto rand_head_name =  make_random_string(142 + rand() % 142, 'a', 'z' );
+    auto rand_head_value = make_random_string(142 + rand() % 142, 'a', 127 );
+
+    const string s1 = "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
+                      "Accept: */*\r\n"
+                      "Transfer-Encoding: identity\r\n"
+                      "Content-Length: " + bodylen + "\r\n"
+                      + rand_head_name + ": " + rand_head_value + "\r\n"  
+                      "\r\n"
+                      + b1;
+
+    const string s2 =  b2 ;         
+
+    assert( test_readparse_pausing( s1, parser ) == true );
+    assert( test_readparse_pausing( s2, parser ) == false );
+
+
+    assert( parser.body == b1+b2);
+    assert( parser.headers[rand_head_name] == rand_head_value );
+
+
+}
+
+void run(const char* name, void(* func)(), int count )
+{
+    cout << name << " ... " << std::flush ;
+    for( int i = 0; i < count ; ++i) func(); 
+    cout << name << " ok" << endl;
+}
+
+#define RUN(f,count) run( #f, &f, count )
+
 int main() {
-    test1();
-    test2();
-    test3();
-    test4();
-    test5();
+    srand ( time(nullptr));
+    RUN( test1 , 5000 );
+    RUN( test2 , 5000 );
+    RUN( test3 , 5000 );
+    RUN( test4 , 5000 );
+    RUN( test5 , 5000 );
+    RUN( test6 , 5000 );
 }
 
 #include "detail/http_parser_impl.hxx"

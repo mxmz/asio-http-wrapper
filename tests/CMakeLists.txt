@@ -29,3 +29,9 @@ SET_TARGET_PROPERTIES(  buffpipe1
 		PROPERTIES 
 		COMPILE_FLAGS "-g -fpermissive -Wall -std=c++11 -std=c++14"
 )
+
+ENABLE_TESTING()
+
+ADD_TEST( NAME http_parser_test COMMAND http_parser_test )
+ADD_TEST( NAME stream_pipe_test COMMAND stream_pipe_test )
+ADD_TEST( NAME http_inbound_connection_test COMMAND http_inbound_connection_test )

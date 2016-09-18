@@ -4,5 +4,14 @@
         "-std=c++14",
         "-I${workspaceRoot}/include",
         "-I/usr/include"
-    ]
+    ],
+    "files.exclude": {
+        "tests/*_test": true,
+        "*/*.cmake": true,
+        "*/CMakeCache.txt": true,
+        "tests/Makefile": true,
+        "**/.git*": true,
+        "**/core": true,
+        "**/CMakeFiles/**" :  true
+    }
 }

@@ -34,9 +34,9 @@ int main()
     size_t source_base_size  = 1000 + ( rand() % 1000);
     srand (time(nullptr));
     auto now = time(nullptr);
-    while ( (time(nullptr) - now < 10 ) or (source_base_size < 50000000) ) {
-        random_test(source_base_size );
-        source_base_size *= ( 1 + rand() % 4 ) ;
+    while ( (time(nullptr) - now < 5 ) and (source_base_size < 50000000) ) {
+        random_test(source_base_size);
+        source_base_size *= ( 1 + rand() % 5 ) ;
         source_base_size += ( rand() % 1000 ) ;
     }
 }
@@ -65,11 +65,15 @@ void random_test(size_t source_base_size ) {
                     std::copy( i, i + chunk, buffer_cast<char*>(buff));
                     rb.commit(chunk);
                     i += chunk;
+                    cerr << "\rt1: written " << chunk << "      ";
                 } else {
    //                 cerr << "sleeping ...  source read = " << (i - source.begin() )  << endl;
+                    cerr << "\rt1: sleeping                   ";
                     std::this_thread::sleep_for( std::chrono::milliseconds(rand() % 100 ));
                 }
-            } 
+            }
+            cerr << endl;
+            cerr << "t1: end" << endl; 
              
     });
 
@@ -82,19 +86,36 @@ void random_test(size_t source_base_size ) {
                 auto size = buffer_size(buff);
                 copy.append(data,size);
                 rb.consume(size);
+                cerr << "\r\t\t\t\tt2: consumed " << size << "         ";
             } else {
  //               cerr << "sleeping ...  copy written = " << copy.size()  << endl;
+                 cerr << "\r\t\t\t\tt2: sleeping          ";
                 std::this_thread::sleep_for( std::chrono::milliseconds(rand() % 100 ));
             }
-
         }
+        cerr << endl;
+        cerr << "t2: end" << endl;
 
     });
 
     t1.join();
     t2.join();
+    
     cerr << "checking..." << endl;   
     assert( source == copy );
+    assert( rb.empty() );
+
+    mxmz::ring_buffer   rb2(1);
+    rb2.commit(1);
+    assert( not rb2.empty() );
+
+    rb.swap(rb2);
+
+    assert( rb2.empty() );
+
+    rb.consume(1);
+    assert(rb.empty() );
+
     cerr << "ok" << endl;
 
     

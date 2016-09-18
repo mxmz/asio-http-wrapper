@@ -33,12 +33,15 @@ public:
     http_parser_base( mode_t, Handlers& );
     http_parser_base( http_parser_state&&, Handlers& );
     http_parser_base( const http_parser_base& ) = delete;
-protected:
+
     http_parser_base( mode_t mode );
     http_parser_base( http_parser_state&& ) ;
 public:
     void pause();
     void unpause();
+
+    bool paused() const ;
+    bool good()   const ;
 
     void reset();
     size_t parse(const char* buffer, size_t len );

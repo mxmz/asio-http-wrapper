@@ -18,14 +18,17 @@ struct http_request_header {
     const string method;
     const string url;
     const map<string,string> headers;
+    const string& operator[]( const string& v) const;
 };
+
+typedef std::unique_ptr<http_request_header>  http_request_header_ptr;
 
   
 //ypedef std::function< void ( boost::system::error_code ec ) >                  write_header_completion_t;
 
 //typedef std::function< void ( boost::system::error_code ec, std::size_t bytes_transferred ) > write_body_completion_t;
 
-
+/*
 
 template< class SrcStream >
 class http_inbound_connection {
@@ -37,7 +40,7 @@ public:
     http_inbound_connection( SrcStream&& socket );
 
 
-    typedef std::unique_ptr<http_request_header>  http_request_header_ptr;
+    
 
     typedef std::function< void ( boost::system::error_code ec, http_request_header_ptr ) > read_header_completion_t;
     void async_read_request_header( read_header_completion_t );
@@ -51,7 +54,7 @@ public:
 
 };
 
-
+*/
 
 } //namespace xmmz
 

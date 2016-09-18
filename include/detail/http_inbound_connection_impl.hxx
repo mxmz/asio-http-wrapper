@@ -1,6 +1,7 @@
 #include "http_inbound_connection.hxx"
 #include <iostream>
 #include <memory>
+#include <vector>
 #include "http_parser.hxx"
 #include <cassert>
 #include <cstring>
@@ -11,91 +12,203 @@ using namespace std;
 using boost::asio::mutable_buffers_1;
 using boost::asio::buffer_cast;
 using boost::asio::mutable_buffer;
-using boost::asio::const_buffers_1;;
+using boost::asio::const_buffers_1;
+using boost::asio::const_buffer;
+using boost::system::error_code;
 
-template< class SrcStream >
-class http_inbound_connection<SrcStream>::detail : 
-    public  mxmz::http_parser_base<http_inbound_connection<SrcStream>::detail >
-{
-    typedef mxmz::http_parser_base<http_inbound_connection<SrcStream>::detail > base_t;
-    
-
- SrcStream  stream;
-
- struct request_state {
-        map< string, string >   headers;
-        
-        http_request_header_ptr  header_ready;
-
-        string                  body;
-        size_t                  body_consumed;
-        
-        request_state() : body_consumed() {}
-     
-        size_t consume_body(boost::asio::mutable_buffers_1 buff) {
-            size_t consumed = buffer_copy( buff, const_buffer(body.data(), body.size()) + body_consumed  );
-            body_consumed += consumed;
-            cerr << "consume stored: " << consumed << endl;
-            return consumed;
+class http_request_header_builder {
+        map< string, string >   _headers;
+        string                  _method;
+        string                  _request_uri;
+        public:
+        http_request_header_builder& set_method ( string&& method ) {
+            _method = move(method);
+            return *this;
+        }     
+        http_request_header_builder& set_request_uri ( string&& request_uri ) {
+            _request_uri = move(request_uri);
+            return *this;
         }
-    }; 
+        http_request_header_builder& add_header ( string&& k, string&& v ) {
+            _headers[k] = move(v);
+            return *this;
+        }
 
- typedef unique_ptr<request_state>  request_state_ptr; 
- 
- request_state_ptr current;
- 
- typedef std::function< size_t(const char*, size_t )> body_consumer_t;
+        http_request_header_ptr build() {
+            http_request_header_ptr r( new http_request_header{move(_method), move(_request_uri), move(_headers)} );
+            _method.clear(); _request_uri.clear(); _headers.clear();
+            return r;
+        }
+        bool ready () const {
+            return _method.size() and _request_uri.size();
+        }
 
- std::array<char, 8192>  buffer;
+        typedef http_request_header_ptr type_ptr;
 
-body_consumer_t   body_consumer;
+};
 
- 
+const string& http_request_header::operator[]( const string& k) const {
+        auto found = headers.find(k);
+        if ( found != headers.end() ) {
+            return found->second;
+        } else {
+            static string empty;
+            return empty;
+        }
+}
 
-public:
-    detail( detail& ) = delete;
-    detail( SrcStream&& s ) :
-        base_t( base_t::Request ),
-        stream( move(s))
-    {
-               current = request_state_ptr( new request_state() );   
+class consumable_buffer {
+    std::vector<char> storage;
+    size_t            consumed;
+    public:
+    consumable_buffer() : consumed(0) {}
+
+    void append( const char* p, size_t l ) {
+         for( auto i = p; i != p+l; ++i ) storage.emplace_back( *i );
+     }
+
+    const_buffers_1 data() const {
+        return const_buffers_1( storage.data() + consumed, storage.size() - consumed ); 
+    }
+    void consume( size_t l) {
+        consumed += l;
+        if ( consumed == storage.size() ) {
+            storage.clear();
+            consumed = 0;
+        }
+
     }
 
+    bool empty() const {
+        return buffer_size(data()) == 0;
+    }
+};
 
+
+
+template< class Handlers, class RequestHeaderBuilder = http_request_header_builder > 
+class pausing_request_http_parser : 
+    public  mxmz::http_parser_base< pausing_request_http_parser<Handlers, RequestHeaderBuilder> >
+{
+    typedef mxmz::http_parser_base< pausing_request_http_parser<Handlers, RequestHeaderBuilder> > base_t;
+    
+    
+    
+    struct state_data {
+        RequestHeaderBuilder hrh_builder;
+        consumable_buffer       body_ready;
+        error_code              error;
+        bool                    complete;
+    };
+
+public:    
+    typedef typename RequestHeaderBuilder::type_ptr header_ptr;
+
+    
+private: 
+    
+    state_data             state;
+
+    Handlers& handlers;
+
+    using base_t::pause;
+public:
+
+
+
+    pausing_request_http_parser( const pausing_request_http_parser& ) = delete;
+    pausing_request_http_parser(  pausing_request_http_parser&& ) = delete;
+
+    
+
+    pausing_request_http_parser() :
+        base_t( base_t::Request ),
+        handlers(static_cast<Handlers&>(*this))
+    {
+   
+    }
+    pausing_request_http_parser(Handlers& c ) :
+        base_t( base_t::Request ),
+        handlers(c)
+    {
+   
+    }
 
 
     void on_response_headers_complete( int code, const string& response_status ) {
+        std::abort();
     }
 
-    void  on_request_headers_complete( string&& method, const string&& request_url ) {
-        http_request_header_ptr r( new http_request_header{move(method), move(request_url), move(current->headers)} );
-        current->header_ready = move(r);
+    void on_header_line( std::string&& name, string&& value )  {
+        state.hrh_builder.add_header( move(name), move(value) );
+    }
+    void  on_request_headers_complete( string&& method, string&& request_url ) {
+        http_request_header_ptr h(  
+            move(  state.hrh_builder
+                .set_method(move(method))
+                .set_request_uri(move(request_url))
+                .build() ) );
+        handlers.notify_header(move(h));        
+        this->pause();     
     };
 
     void on_error(int http_errno, const char* msg)
     {
         cerr << "Error: " << http_errno << " " << msg << endl;
+        std::abort();
     }
     void on_message_complete()
     {
-        cerr << "Message complete" << endl;
-    }
-    void on_message_begin()
-    {
-        cerr << "Message begin" << endl;
-    }
-    void on_header_line( const std::string& name, string&& value )
-    {
-        current->headers[name] = move(value);
+        this->pause();     
+        state.complete = true;
+//        cerr << "on_message_complete "<< endl;
+        flush();
     }
 
+    void on_message_begin()
+    {     state.complete = false;
+//        cerr << "Message begin" << endl;
+    }
+    
+
     void reset() {
-       current = request_state_ptr( new request_state() );   
         base_t::reset();
     }
 
-    
+        
+    void on_body( const char* p, size_t l) {
+            flush();
+            if ( state.body_ready.empty() ) {
+                size_t consumed = handlers.handle_body( p, l );
+                state.body_ready.append(p + consumed, l - consumed );
+            } else {
+                state.body_ready.append(p , l );
+            }
+            this->pause();    
+    }
 
+   size_t flush() {
+       //cerr << "flush" << endl;
+        if ( not state.body_ready.empty()  ) {
+            auto data = state.body_ready.data();
+            size_t consumed = handlers.handle_body( buffer_cast<const char*>(data), buffer_size(data) );
+            state.body_ready.consume(consumed);
+        }
+        //cerr << "flush " <<  buffer_size( state.body_ready.data()) << " " << state.body_ready.empty() << " " << state.complete<<   endl;
+        if ( state.complete and state.body_ready.empty() ) {
+            handlers.notify_body_end();
+            state.complete = false;
+        }
+        return buffer_size( state.body_ready.data());
+   }
+        
+
+    
+};
+         
+
+    
+/*
 
     void 
     async_read_request_header( read_header_completion_t  comp ) {
@@ -122,14 +235,7 @@ public:
 
     
 
-    void on_body( const char* p, size_t l) {
-
-            size_t consumed = body_consumer ? body_consumer( p, l  ) : 0 ;
-            if ( consumed < l ) {
-                    current->body.append(p + consumed, l - consumed );
-            }
-            body_consumer = body_consumer_t();
-    }
+    
 
     void async_read_some( mutable_buffers_1 buff, read_body_completion_t comp ){
         if ( size_t consumed = current->consume_body(buff)) {
@@ -162,11 +268,11 @@ public:
         }
     }
 
+  */  
     
-    
-    
-};
 
+
+/*
 
 template< class SrcStream >
 void 
@@ -186,7 +292,7 @@ http_inbound_connection<SrcStream>::http_inbound_connection( SrcStream&& s )
     : i( new detail(move(s)))
     {}
 
-
+*/
 
 
 

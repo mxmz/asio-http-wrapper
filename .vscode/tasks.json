@@ -4,8 +4,8 @@
     "version": "0.1.0",
     "command": "make",
     "isShellCommand": true,
-    "args": ["-C", "${workspaceRoot}/tests" ],
-    "showOutput": "silent",
+    "args": ["-C", "${workspaceRoot}/tests", "all", "test" ],
+    "showOutput": "always",
     "problemMatcher": {
         "owner": "cpp",
         "fileLocation": ["absolute"],

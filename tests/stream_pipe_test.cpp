@@ -66,7 +66,7 @@ void test1(int max_micro_sleep )
         asio::ip::tcp::socket src(ios);
         asio::ip::tcp::socket dst(ios);
 
-        auto source  = make_random_string(1024*1024*5);
+        auto source  = make_random_string(1024*1024);
         int src_port = 60000 + (rand()%5000);
         int dst_port = 60000 + (rand()%5000);
         string copy;
@@ -148,7 +148,7 @@ void test1(int max_micro_sleep )
 
         for ( int i = 0; i != 10; ++i ) {
             thread t( [&ios,i ]() {
-                        std::this_thread::sleep_for( chrono::milliseconds(rand() % 100 ));
+                        std::this_thread::sleep_for( chrono::milliseconds(rand() % 3 ));
                         cout << i << ": " << std::this_thread::get_id() << endl; 
                         ios.run();
             });
@@ -170,12 +170,13 @@ void test1(int max_micro_sleep )
 
 
 int main(){
-    time_t max_time = getenv<time_t>("MAX_TIME", 10);
+    time_t max_time = getenv<time_t>("MAX_TIME", 2);
     
     auto start = time(nullptr);
     srand(start);
+    int i = 1; 
     while ( time(nullptr) - start < max_time ) {  
-        test1( rand() % 5  + 1 );
+        test1( i++  );
     }
     return 0;
 }

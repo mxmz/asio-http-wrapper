@@ -2,6 +2,7 @@
 #include <iostream>
 #include <memory>
 #include "http_parser.hxx"
+#include <cassert>
 
 namespace mxmz {
 
@@ -36,6 +37,13 @@ public:
     } 
 
     tuple_builder(): last(0) { }
+    tuple_builder( const tuple_builder& ) = delete;
+    tuple_builder( tuple_builder&& that ) {
+        swap( last, that.last  );
+        swap( tuple, that.tuple  );
+        swap( ready, that.ready  );
+    }
+
     void reset() {
         last = 0;
         tuple = move(tuple_t());
@@ -63,17 +71,20 @@ struct http_parser_state : public tuple_builder< http_parser_state >{
         response_status.resize(0);
         this->base_t::reset();
     }
+    http_parser_state( ) = delete;
     http_parser_state( const http_parser_state& ) = delete;
     http_parser_state( http_parser_state&& that ) 
-        : base_t(that)   {
+        : base_t(move(that)) {
+        parser = (http_parser*)malloc( sizeof(http_parser));
+        type = HTTP_BOTH;
         swap( parser, that.parser );
         swap( type, that.type );
         swap( request_url, that.request_url );
         swap( response_status, that.response_status);
+        assert( parser );
     }
 
 };
-
 
 
 template <class Handlers>
@@ -131,10 +142,13 @@ struct http_parser_base<Handlers>::detail   {
         //cerr << http_errno_name(http_errno(parser->http_errno)) << endl;
         //http_parser_pause( parser, 0 );
         size_t rv = http_parser_execute(parser, &settings, buffer, len);
-        // cerr << parser->http_errno << endl;
-        // cerr << http_errno_name(http_errno(parser->http_errno)) << endl;
-        // cerr << http_errno_description(http_errno(parser->http_errno)) << endl;
-        // cerr << "." << endl;
+#if 0        
+         cerr << parser->http_errno << endl;
+         cerr << http_errno_name(http_errno(parser->http_errno)) << endl;
+         cerr << http_errno_description(http_errno(parser->http_errno)) << endl;
+         cerr << " rv " << rv << " char " << int( buffer[rv] ) << endl;         
+         cerr << "." << endl;
+#endif         
         if ( HTTP_PARSER_ERRNO(parser) != HPE_PAUSED && HTTP_PARSER_ERRNO(parser) != HPE_OK ) {
             handlers.on_error(parser->http_errno,
                               http_errno_description(http_errno(parser->http_errno)));
@@ -147,6 +161,14 @@ struct http_parser_base<Handlers>::detail   {
     }
     void unpause() {
         http_parser_pause( state.parser , 0 );
+    }
+
+    bool paused() const {
+        return HTTP_PARSER_ERRNO(state.parser) == HPE_PAUSED;
+    }
+
+    bool good() const {
+        return HTTP_PARSER_ERRNO(state.parser) == HPE_PAUSED || HTTP_PARSER_ERRNO(state.parser) == HPE_PAUSED;
     }
 
     http_parser_state&& move_state() {
@@ -212,7 +234,7 @@ struct http_parser_base<Handlers>::detail   {
 
     static int message_begin_cb(http_parser* p)
     {
-        cerr << __FUNCTION__ << endl;
+       // cerr << __FUNCTION__ << endl;
         get_self(p).handlers.on_message_begin();
         // cerr << p->http_errno << endl;
         // cerr << "." << endl;
@@ -241,7 +263,7 @@ struct http_parser_base<Handlers>::detail   {
             string response_status( move( self.state.response_status ) );
             self.handlers.on_response_headers_complete( p->status_code, move(response_status) );
         }
-
+        
         //cerr << __FUNCTION__ << endl;
         //cerr << "major  " << p->http_major << endl;
         //cerr << "minor  " << p->http_minor << endl;
@@ -319,6 +341,18 @@ template <class Handlers>
 void http_parser_base<Handlers>::unpause()
 {
     return i->unpause();
+}
+
+template <class Handlers>
+bool http_parser_base<Handlers>::paused() const 
+{
+    return i->paused();
+}
+
+template <class Handlers>
+bool http_parser_base<Handlers>::good() const 
+{
+    return i->good();
 }
 
 template <class Handlers>

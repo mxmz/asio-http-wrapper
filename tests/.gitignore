@@ -2,4 +2,8 @@ buffpipe1
 ring_buffer_test
 http_parser_test
 stream_pipe_test
+http_inbound_connection_testcore
 http_inbound_connection_test
+core
+Testing
+CTestTestfile.cmake
