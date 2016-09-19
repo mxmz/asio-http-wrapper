@@ -78,8 +78,11 @@ struct body_reader : public enable_shared_from_this<body_reader> {
 */
 
 
-class parser : public  mxmz::pausing_request_http_parser<parser> {
+class parser : public  mxmz::buffering_request_http_parser<parser> {
+    typedef mxmz::buffering_request_http_parser<parser> base_t;
     public:
+
+    parser() : base_t( 1000) {}
 
     parser::header_ptr header;
 
@@ -88,7 +91,7 @@ class parser : public  mxmz::pausing_request_http_parser<parser> {
     } 
 
     string body; 
-    string body_ok; 
+    bool    finished = false;
 
     size_t handle_body( const char* p , size_t l ) {
         cerr << "handle_body: l " << l << endl;
@@ -101,7 +104,7 @@ class parser : public  mxmz::pausing_request_http_parser<parser> {
     }
 
     void notify_body_end() {
-            body_ok.swap(body);
+            finished = true;
     }
 
 
@@ -113,7 +116,7 @@ void test1() {
 
     parser prs;
     
-    auto b1 = make_random_string( 1042 + rand() % 1042, 0, 256 );
+    auto b1 = make_random_string( 1042 + rand() % 10042, 0, 256 );
     
 
     string bodylen = boost::lexical_cast<string>( b1.size() );
@@ -165,17 +168,16 @@ void test1() {
           len = min( len , (end-p) );
           cerr << "paused " << prs.paused() << endl;
           long int consumed = prs.parse( p, len );
-          cerr << "len " << len << " consumed " << consumed << endl;
+          cerr << "len " << len << " consumed " << consumed <<  " paused " << prs.paused() << endl;
           prs.unpause();
-          if ( prs.body_ok.size() ) break;
           p += consumed;
      }
      cerr << "flushing" << endl;
-     while ( prs.flush() ) {} ;
+     while ( not prs.finished ) {   prs.flush();  } ;
      cerr << b1.size() << endl;
-     cerr << prs.body_ok.size() << endl;
+     cerr << prs.body.size() << endl;
 
-     assert( prs.body_ok == b1 );
+     assert( prs.body == b1 );
 
 /*
 
@@ -294,7 +296,7 @@ void run(const char* name, void(* func)(), int count )
 
 int main() {
     srand(time(nullptr));
-    RUN( test1, 5000 );
+    RUN( test1, verbose ? 1: 1000 );
 }
 
 

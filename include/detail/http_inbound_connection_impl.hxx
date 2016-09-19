@@ -87,16 +87,16 @@ class consumable_buffer {
 
 
 template< class Handlers, class RequestHeaderBuilder = http_request_header_builder > 
-class pausing_request_http_parser : 
-    public  mxmz::http_parser_base< pausing_request_http_parser<Handlers, RequestHeaderBuilder> >
+class buffering_request_http_parser : 
+    public  mxmz::http_parser_base< buffering_request_http_parser<Handlers, RequestHeaderBuilder> >
 {
-    typedef mxmz::http_parser_base< pausing_request_http_parser<Handlers, RequestHeaderBuilder> > base_t;
+    typedef mxmz::http_parser_base< buffering_request_http_parser<Handlers, RequestHeaderBuilder> > base_t;
     
     
     
     struct state_data {
         RequestHeaderBuilder hrh_builder;
-        consumable_buffer       body_ready;
+        consumable_buffer       body_buffered;
         error_code              error;
         bool                    complete;
     };
@@ -106,7 +106,8 @@ public:
 
     
 private: 
-    
+    const size_t buffer_threshold;
+
     state_data             state;
 
     Handlers& handlers;
@@ -116,18 +117,19 @@ public:
 
 
 
-    pausing_request_http_parser( const pausing_request_http_parser& ) = delete;
-    pausing_request_http_parser(  pausing_request_http_parser&& ) = delete;
+    buffering_request_http_parser( const buffering_request_http_parser& ) = delete;
+    buffering_request_http_parser(  buffering_request_http_parser&& ) = delete;
 
     
 
-    pausing_request_http_parser() :
+    buffering_request_http_parser(size_t buffer_threshold = std::numeric_limits<size_t>::max() ) :
         base_t( base_t::Request ),
+        buffer_threshold(buffer_threshold),
         handlers(static_cast<Handlers&>(*this))
     {
    
     }
-    pausing_request_http_parser(Handlers& c ) :
+    buffering_request_http_parser(Handlers& c ) :
         base_t( base_t::Request ),
         handlers(c)
     {
@@ -178,28 +180,30 @@ public:
         
     void on_body( const char* p, size_t l) {
             flush();
-            if ( state.body_ready.empty() ) {
+            if ( state.body_buffered.empty() ) {
                 size_t consumed = handlers.handle_body( p, l );
-                state.body_ready.append(p + consumed, l - consumed );
+                state.body_buffered.append(p + consumed, l - consumed );
             } else {
-                state.body_ready.append(p , l );
+                state.body_buffered.append(p , l );
             }
-            this->pause();    
+            if ( buffer_size( state.body_buffered.data()) > buffer_threshold  ) {
+                this->pause();
+            }    
     }
 
    size_t flush() {
        //cerr << "flush" << endl;
-        if ( not state.body_ready.empty()  ) {
-            auto data = state.body_ready.data();
+        if ( not state.body_buffered.empty()  ) {
+            auto data = state.body_buffered.data();
             size_t consumed = handlers.handle_body( buffer_cast<const char*>(data), buffer_size(data) );
-            state.body_ready.consume(consumed);
+            state.body_buffered.consume(consumed);
         }
-        //cerr << "flush " <<  buffer_size( state.body_ready.data()) << " " << state.body_ready.empty() << " " << state.complete<<   endl;
-        if ( state.complete and state.body_ready.empty() ) {
+        //cerr << "flush " <<  buffer_size( state.body_buffered.data()) << " " << state.body_buffered.empty() << " " << state.complete<<   endl;
+        if ( state.complete and state.body_buffered.empty() ) {
             handlers.notify_body_end();
             state.complete = false;
         }
-        return buffer_size( state.body_ready.data());
+        return buffer_size( state.body_buffered.data());
    }
         
 
