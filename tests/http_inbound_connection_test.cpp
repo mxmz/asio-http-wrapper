@@ -11,7 +11,6 @@
 #include <future>
 
 #include "http_inbound_connection.hxx"
-#include "detail/http_inbound_connection_impl.hxx"
 #include "boost/lexical_cast.hpp"
 #include "ring_buffer.hxx"
 
@@ -77,26 +76,27 @@ struct body_reader : public enable_shared_from_this<body_reader> {
 
 */
 
+using namespace mxmz;
 
 class parser : public  mxmz::buffering_request_http_parser<parser> {
     typedef mxmz::buffering_request_http_parser<parser> base_t;
     public:
 
-    parser() : base_t( 1000) {}
+    parser() : base_t(10000) {}
 
-    parser::header_ptr header;
+    std::unique_ptr<http_request_header> header;
 
-    void notify_header( parser::header_ptr h ) {
+    void notify_header( std::unique_ptr<http_request_header> h ) {
             header = move(h);
     } 
 
     string body; 
     bool    finished = false;
 
-    size_t handle_body( const char* p , size_t l ) {
+    size_t handle_body_chunk( const char* p , size_t l ) {
         cerr << "handle_body: l " << l << endl;
         if ( l == 0 ) return 0;
-        size_t rl = rand() % l + 1 ;
+        size_t rl = rand() % (l+1)  ;
         body.append( p, rl );
         cerr << "handle_body: rl " << rl << endl;
           cerr << "handle_body: body " << body.size() << endl;
@@ -162,14 +162,14 @@ void test1() {
           
           
     }
-    prs.unpause();
+    
      while( p != end ) {
           long int len = size_t( bufsize + 1 ); bufsize *= 1 + float(rand()%10 - 4 )/10;
           len = min( len , (end-p) );
           cerr << "paused " << prs.paused() << endl;
           long int consumed = prs.parse( p, len );
           cerr << "len " << len << " consumed " << consumed <<  " paused " << prs.paused() << endl;
-          prs.unpause();
+    
           p += consumed;
      }
      cerr << "flushing" << endl;
@@ -301,3 +301,4 @@ int main() {
 
 
 
+#include "detail/http_inbound_connection_impl.hxx"

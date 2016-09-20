@@ -1,8 +1,12 @@
+#ifndef http_inbound_connection_impl_394853985739857398623572653726537625495679458679458679486749
+#define http_inbound_connection_impl_394853985739857398623572653726537625495679458679458679486749
+
 #include "http_inbound_connection.hxx"
 #include <iostream>
 #include <memory>
 #include <vector>
 #include "http_parser.hxx"
+#include "http_inbound_connection.hxx"
 #include <cassert>
 #include <cstring>
 
@@ -85,14 +89,12 @@ class consumable_buffer {
 };
 
 
-
-template< class Handlers, class RequestHeaderBuilder = http_request_header_builder > 
-class buffering_request_http_parser : 
-    public  mxmz::http_parser_base< buffering_request_http_parser<Handlers, RequestHeaderBuilder> >
+template< class Handlers, class RequestHeaderBuilder> 
+class buffering_request_http_parser<Handlers,RequestHeaderBuilder>::detail : 
+    public  mxmz::http_parser_base< buffering_request_http_parser<Handlers, RequestHeaderBuilder>::detail >
 {
-    typedef mxmz::http_parser_base< buffering_request_http_parser<Handlers, RequestHeaderBuilder> > base_t;
-    
-    
+    typedef mxmz::http_parser_base< buffering_request_http_parser<Handlers, RequestHeaderBuilder>::detail > base_t;
+        
     
     struct state_data {
         RequestHeaderBuilder hrh_builder;
@@ -117,20 +119,14 @@ public:
 
 
 
-    buffering_request_http_parser( const buffering_request_http_parser& ) = delete;
-    buffering_request_http_parser(  buffering_request_http_parser&& ) = delete;
+    detail( const detail& ) = delete;
+    detail(  detail&& ) = delete;
 
     
-
-    buffering_request_http_parser(size_t buffer_threshold = std::numeric_limits<size_t>::max() ) :
+    
+    detail(Handlers& c, size_t buffer_threshold = std::numeric_limits<size_t>::max()  ) :
         base_t( base_t::Request ),
         buffer_threshold(buffer_threshold),
-        handlers(static_cast<Handlers&>(*this))
-    {
-   
-    }
-    buffering_request_http_parser(Handlers& c ) :
-        base_t( base_t::Request ),
         handlers(c)
     {
    
@@ -181,7 +177,7 @@ public:
     void on_body( const char* p, size_t l) {
             flush();
             if ( state.body_buffered.empty() ) {
-                size_t consumed = handlers.handle_body( p, l );
+                size_t consumed = handlers.handle_body_chunk( p, l );
                 state.body_buffered.append(p + consumed, l - consumed );
             } else {
                 state.body_buffered.append(p , l );
@@ -195,7 +191,7 @@ public:
        //cerr << "flush" << endl;
         if ( not state.body_buffered.empty()  ) {
             auto data = state.body_buffered.data();
-            size_t consumed = handlers.handle_body( buffer_cast<const char*>(data), buffer_size(data) );
+            size_t consumed = handlers.handle_body_chunk( buffer_cast<const char*>(data), buffer_size(data) );
             state.body_buffered.consume(consumed);
         }
         //cerr << "flush " <<  buffer_size( state.body_buffered.data()) << " " << state.body_buffered.empty() << " " << state.complete<<   endl;
@@ -300,8 +296,64 @@ http_inbound_connection<SrcStream>::http_inbound_connection( SrcStream&& s )
 
 
 
+template <class Handlers, class RHB>
+buffering_request_http_parser<Handlers,RHB>::buffering_request_http_parser(Handlers& hndls, size_t buffer_threshold )
+    : i( new detail(hndls, buffer_threshold) )
+{
+}
+
+template <class Handlers, class RHB>
+buffering_request_http_parser<Handlers,RHB>::buffering_request_http_parser(size_t buffer_threshold )
+    : i( new detail(static_cast<Handlers&>(*this), buffer_threshold) )
+{
+}
+
+
+template <class Handlers, class RHB>
+bool buffering_request_http_parser<Handlers,RHB>::paused() const 
+{
+    return i->paused();
+}
+
+template <class Handlers, class RHB>
+bool buffering_request_http_parser<Handlers,RHB>::good() const 
+{
+    return i->good();
+}
+
+template <class Handlers, class RHB>
+void buffering_request_http_parser<Handlers,RHB>::reset()
+{
+    return i->reset();
+}
+template <class Handlers, class RHB>
+size_t buffering_request_http_parser<Handlers,RHB>::flush()
+{
+    return i->flush();
+}
+
+template <class Handlers, class RHB>
+size_t buffering_request_http_parser<Handlers,RHB>::parse(const char* buffer, size_t len)
+{   
+    i->unpause();
+    return i->parse(buffer, len);
+}
+
+/*
+template <class Handlers, class RHB>
+http_parser_state&& 
+buffering_request_http_parser<Handlers,RHB>::move_state() {
+    return i->move_state();
+}
+*/
+
+
+
+
+
 }
 
 
 
 #include "detail/http_parser_impl.hxx"
+#endif
