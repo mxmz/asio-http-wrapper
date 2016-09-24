@@ -100,7 +100,7 @@ class buffering_request_http_parser<Handlers,RequestHeaderBuilder>::detail :
         RequestHeaderBuilder hrh_builder;
         consumable_buffer       body_buffered;
         error_code              error;
-        bool                    complete;
+        bool                    complete = false;
     };
 
 public:    
@@ -112,7 +112,7 @@ private:
 
     state_data             state;
 
-    Handlers& handlers;
+    Handlers* handlers;
 
     using base_t::pause;
 public:
@@ -124,7 +124,7 @@ public:
 
     
     
-    detail(Handlers& c, size_t buffer_threshold = std::numeric_limits<size_t>::max()  ) :
+    detail(Handlers* c, size_t buffer_threshold = std::numeric_limits<size_t>::max()  ) :
         base_t( base_t::Request ),
         buffer_threshold(buffer_threshold),
         handlers(c)
@@ -138,15 +138,17 @@ public:
     }
 
     void on_header_line( std::string&& name, string&& value )  {
+        cerr << __FUNCTION__ << endl;
         state.hrh_builder.add_header( move(name), move(value) );
     }
     void  on_request_headers_complete( string&& method, string&& request_url ) {
+        cerr << __FUNCTION__ << endl;
         http_request_header_ptr h(  
             move(  state.hrh_builder
                 .set_method(move(method))
                 .set_request_uri(move(request_url))
                 .build() ) );
-        handlers.notify_header(move(h));        
+        handlers->notify_header(move(h));        
         this->pause();     
     };
 
@@ -159,13 +161,14 @@ public:
     {
         this->pause();     
         state.complete = true;
-//        cerr << "on_message_complete "<< endl;
+        cerr << __FUNCTION__ << endl;
         flush();
     }
 
     void on_message_begin()
     {     state.complete = false;
 //        cerr << "Message begin" << endl;
+        cerr << __FUNCTION__ << endl;
     }
     
 
@@ -175,9 +178,10 @@ public:
 
         
     void on_body( const char* p, size_t l) {
+                cerr << __FUNCTION__ << endl;
             flush();
             if ( state.body_buffered.empty() ) {
-                size_t consumed = handlers.handle_body_chunk( p, l );
+                size_t consumed = handlers->handle_body_chunk( p, l );
                 state.body_buffered.append(p + consumed, l - consumed );
             } else {
                 state.body_buffered.append(p , l );
@@ -188,15 +192,15 @@ public:
     }
 
    size_t flush() {
-       //cerr << "flush" << endl;
+       cerr << "flush" << endl;
         if ( not state.body_buffered.empty()  ) {
             auto data = state.body_buffered.data();
-            size_t consumed = handlers.handle_body_chunk( buffer_cast<const char*>(data), buffer_size(data) );
+            size_t consumed = handlers->handle_body_chunk( buffer_cast<const char*>(data), buffer_size(data) );
             state.body_buffered.consume(consumed);
         }
-        //cerr << "flush " <<  buffer_size( state.body_buffered.data()) << " " << state.body_buffered.empty() << " " << state.complete<<   endl;
+        cerr << "flush " <<  buffer_size( state.body_buffered.data()) << " " << state.body_buffered.empty() << " " << state.complete<<   endl;
         if ( state.complete and state.body_buffered.empty() ) {
-            handlers.notify_body_end();
+            handlers->notify_body_end();
             state.complete = false;
         }
         return buffer_size( state.body_buffered.data());
@@ -294,17 +298,21 @@ http_inbound_connection<SrcStream>::http_inbound_connection( SrcStream&& s )
 
 */
 
-
-
 template <class Handlers, class RHB>
-buffering_request_http_parser<Handlers,RHB>::buffering_request_http_parser(Handlers& hndls, size_t buffer_threshold )
+buffering_request_http_parser<Handlers,RHB>::buffering_request_http_parser(Handlers* hndls, size_t buffer_threshold )
     : i( new detail(hndls, buffer_threshold) )
 {
 }
 
 template <class Handlers, class RHB>
+buffering_request_http_parser<Handlers,RHB>::buffering_request_http_parser(Handlers& hndls, size_t buffer_threshold )
+    : i( new detail(&hndls, buffer_threshold) )
+{
+}
+
+template <class Handlers, class RHB>
 buffering_request_http_parser<Handlers,RHB>::buffering_request_http_parser(size_t buffer_threshold )
-    : i( new detail(static_cast<Handlers&>(*this), buffer_threshold) )
+    : i( new detail(static_cast<Handlers*>(this), buffer_threshold) )
 {
 }
 

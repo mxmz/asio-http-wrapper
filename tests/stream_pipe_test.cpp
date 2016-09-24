@@ -63,7 +63,7 @@ void test1()
 
         asio::io_service ios;
         asio::io_service ios2;
-        asio::ip::tcp::socket src(ios);
+        auto src = std::make_shared<asio::ip::tcp::socket>(ios);
         asio::ip::tcp::socket dst(ios);
 
         auto source  = make_random_string(1024*32 + ( 256 * rand() % 2 ) + (rand() % 256 )  );
@@ -126,22 +126,22 @@ void test1()
          src_ready_future.wait();
          dst_ready_future.wait();
 
-        src.connect( asio::ip::tcp::endpoint( asio::ip::address::from_string("127.0.0.1"), src_port) );
+        src->connect( asio::ip::tcp::endpoint( asio::ip::address::from_string("127.0.0.1"), src_port) );
         dst.connect( asio::ip::tcp::endpoint( asio::ip::address::from_string("127.0.0.1"), dst_port) );
 
         std::promise<bool>   pipe_finished;
         auto pipe_finished_future = pipe_finished.get_future();
 
-        auto pipe = std::make_shared<tcp_socket_pipe>(src, dst, 4567);
+        auto pipe =  mxmz::make_stream_pipe(*src, dst, 4567);
 
-        pipe->run( [pipe,&dst,&pipe_finished](const system::error_code& read_ec, const system::error_code& write_ec) {
+        pipe->run( [pipe,src,&dst,&pipe_finished](const system::error_code& read_ec, const system::error_code& write_ec) {
                     cerr << read_ec.message() << endl;
                     cerr << write_ec.message() << endl;
                     dst.close();
                     cerr << std::this_thread::get_id() << endl;
                     pipe_finished.set_value(true);
                   }  );
-
+                  
         std::vector<std::thread> iosrunners;
         int thcount = 1  + rand() % 4;
         for ( int i = 0; i != thcount; ++i ) {

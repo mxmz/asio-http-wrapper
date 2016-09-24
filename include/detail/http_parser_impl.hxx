@@ -98,18 +98,18 @@ struct http_parser_base<Handlers>::detail   {
 
     typedef http_parser_base<Handlers> owner_type;
 
-    Handlers& handlers;
+    Handlers* handlers;
     struct http_parser_settings settings;
     http_parser_state           state;
 
-    detail( mode_t mode, Handlers& hndls)
+    detail( mode_t mode, Handlers* hndls)
         : handlers(hndls),
           state( mode2type(mode)) 
     {
         state.parser->data = this;
         setup();
     }
-    detail( http_parser_state&& that_state, Handlers& hndls)
+    detail( http_parser_state&& that_state, Handlers* hndls)
         : handlers(hndls),
           state( move(that_state)) 
     {
@@ -150,7 +150,7 @@ struct http_parser_base<Handlers>::detail   {
          cerr << "." << endl;
 #endif         
         if ( HTTP_PARSER_ERRNO(parser) != HPE_PAUSED && HTTP_PARSER_ERRNO(parser) != HPE_OK ) {
-            handlers.on_error(parser->http_errno,
+            handlers->on_error(parser->http_errno,
                               http_errno_description(http_errno(parser->http_errno)));
         }
         return rv;
@@ -190,7 +190,7 @@ struct http_parser_base<Handlers>::detail   {
 
         if ( self.state.template add_tuple_chunk<0>(buf,len) ) {
             tuple_t t = self.state.move_ready();
-            self.handlers.on_header_line( move( get<0>(t) ), move( get<1>(t) ) );
+            self.handlers->on_header_line( move( get<0>(t) ), move( get<1>(t) ) );
         }
         
 
@@ -215,7 +215,7 @@ struct http_parser_base<Handlers>::detail   {
 
         if ( self.state.template add_tuple_chunk<1>(buf,len) ) {
             tuple_t t = self.state.move_ready();
-            self.handlers.on_header_line( move( get<0>(t) ), move( get<1>(t) ) );
+            self.handlers->on_header_line( move( get<0>(t) ), move( get<1>(t) ) );
         }
         // cerr << __FUNCTION__ << ": ";
         // cerr.write(buf, len) << endl;
@@ -227,7 +227,7 @@ struct http_parser_base<Handlers>::detail   {
         // cerr << __FUNCTION__ << ": ";
         // cerr.write(buf, len) << endl;
 
-        get_self(p).handlers.on_body(buf, len);
+        get_self(p).handlers->on_body(buf, len);
 
         return 0;
     }
@@ -235,7 +235,7 @@ struct http_parser_base<Handlers>::detail   {
     static int message_begin_cb(http_parser* p)
     {
        // cerr << __FUNCTION__ << endl;
-        get_self(p).handlers.on_message_begin();
+        get_self(p).handlers->on_message_begin();
         // cerr << p->http_errno << endl;
         // cerr << "." << endl;
         // cerr << p->http_major << endl;
@@ -258,10 +258,10 @@ struct http_parser_base<Handlers>::detail   {
         if ( HTTP_PARSER_ERRNO(p) == HPE_OK && p->status_code == 0 ) {
             string method( http_method_str((http_method)p->method) );
             string request_url ( move( self.state.request_url ) );
-            self.handlers.on_request_headers_complete( move(method), move(request_url) );
+            self.handlers->on_request_headers_complete( move(method), move(request_url) );
         } else if ( HTTP_PARSER_ERRNO(p) == HPE_OK && p->status_code != 0 ) {
             string response_status( move( self.state.response_status ) );
-            self.handlers.on_response_headers_complete( p->status_code, move(response_status) );
+            self.handlers->on_response_headers_complete( p->status_code, move(response_status) );
         }
         
         //cerr << __FUNCTION__ << endl;
@@ -278,7 +278,7 @@ struct http_parser_base<Handlers>::detail   {
     static int message_complete_cb(http_parser* p)
     {
         // cerr << __FUNCTION__ << endl;
-        get_self(p).handlers.on_message_complete();
+        get_self(p).handlers->on_message_complete();
         return 0;
     }
 
@@ -308,26 +308,36 @@ namespace mxmz {
 using namespace std;
 
 template <class Handlers>
-http_parser_base<Handlers>::http_parser_base(mode_t mode, Handlers& hndls)
+http_parser_base<Handlers>::http_parser_base(mode_t mode, Handlers* hndls)
     : i( new detail(mode, hndls) )
+{
+}
+template <class Handlers>
+http_parser_base<Handlers>::http_parser_base(mode_t mode, Handlers& hndls)
+    : i( new detail(mode, &hndls) )
 {
 }
 
 template <class Handlers>
 http_parser_base<Handlers>::http_parser_base(mode_t mode)
-    : i( new detail(mode, static_cast<Handlers&>(*this)))
+    : i( new detail(mode, static_cast<Handlers*>(this)))
 {
 }
 
 template <class Handlers>
-http_parser_base<Handlers>::http_parser_base(http_parser_state&& state, Handlers& hndls)
+http_parser_base<Handlers>::http_parser_base(http_parser_state&& state, Handlers* hndls)
     : i( new detail(move(state), hndls) )
+{
+}
+template <class Handlers>
+http_parser_base<Handlers>::http_parser_base(http_parser_state&& state, Handlers& hndls)
+    : i( new detail(move(state), &hndls) )
 {
 }
 
 template <class Handlers>
 http_parser_base<Handlers>::http_parser_base(http_parser_state&& state)
-    : i( new detail(move(state), static_cast<Handlers&>(*this)))
+    : i( new detail(move(state), static_cast<Handlers*>(this)))
 {
 }
 

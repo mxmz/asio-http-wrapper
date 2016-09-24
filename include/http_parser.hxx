@@ -30,8 +30,11 @@ public:
                   Response,
                   Both
                 };
-    http_parser_base( mode_t, Handlers& );
-    http_parser_base( http_parser_state&&, Handlers& );
+    http_parser_base( mode_t, Handlers* );
+    http_parser_base( mode_t, Handlers& ) ;
+    http_parser_base( http_parser_state&&, Handlers* );
+    http_parser_base( http_parser_state&&, Handlers& ); 
+    
     http_parser_base( const http_parser_base& ) = delete;
 
     http_parser_base( mode_t mode );

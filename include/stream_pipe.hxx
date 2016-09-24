@@ -172,7 +172,16 @@ template< class SrcStream,
 bool stream_pipe_tmpl<SrcStream,DstStream,Strand>::debug;
 
 
+
+template< class SrcStream,  
+        class DstStream,
+        class Strand = boost::asio::io_service::strand >
+std::shared_ptr< stream_pipe_tmpl<SrcStream,DstStream,Strand> > make_stream_pipe( SrcStream& s, DstStream& d, size_t buffer_size ) {
+    typedef stream_pipe_tmpl<SrcStream,DstStream,Strand> pipe_t;
+    return std::make_shared<pipe_t>( s, d, buffer_size) ;
+} 
 }
+
 
 #undef cerr
 
