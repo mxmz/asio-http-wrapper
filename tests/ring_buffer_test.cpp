@@ -14,18 +14,10 @@ using namespace std;
 
 #include "ring_buffer.hxx"
 
+#include "test.hxx"
 
-std::string make_random_string(int c) {
-    std::string s;
-    s.reserve(c);
-    for ( int i = 0; i < c; ++i) {
-        s.push_back( 'a' + rand() % 26 );
-    }
-    return s;
-}
 
-using std::cerr;
-using std::endl;
+
 
 void random_test(size_t source_base_size) ;
 
@@ -34,10 +26,9 @@ int main()
     size_t source_base_size  = 1000 + ( rand() % 1000);
     srand (time(nullptr));
     auto now = time(nullptr);
-    while ( (time(nullptr) - now < 5 ) and (source_base_size < 50000000) ) {
+    while ( (time(nullptr) - now < max_time ) and (source_base_size < 50000000) ) {
         random_test(source_base_size);
-        source_base_size *= ( 1 + rand() % 5 ) ;
-        source_base_size += ( rand() % 1000 ) ;
+        source_base_size += ( 100 * (rand() % (source_base_size/100))) ;
     }
 }
 

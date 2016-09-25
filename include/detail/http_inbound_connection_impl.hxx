@@ -182,6 +182,7 @@ public:
             flush();
             if ( state.body_buffered.empty() ) {
                 size_t consumed = handlers->handle_body_chunk( p, l );
+                cerr << "on_body: buffering " << l - consumed << endl;
                 state.body_buffered.append(p + consumed, l - consumed );
             } else {
                 state.body_buffered.append(p , l );
@@ -191,19 +192,23 @@ public:
             }    
     }
 
-   size_t flush() {
+    typedef std::pair<size_t,size_t>    flush_info_t;
+
+   flush_info_t flush() {
        cerr << "flush" << endl;
+       size_t flushed = 0;
         if ( not state.body_buffered.empty()  ) {
             auto data = state.body_buffered.data();
-            size_t consumed = handlers->handle_body_chunk( buffer_cast<const char*>(data), buffer_size(data) );
-            state.body_buffered.consume(consumed);
+            flushed = handlers->handle_body_chunk( buffer_cast<const char*>(data), buffer_size(data) );
+            state.body_buffered.consume(flushed);
         }
         cerr << "flush " <<  buffer_size( state.body_buffered.data()) << " " << state.body_buffered.empty() << " " << state.complete<<   endl;
         if ( state.complete and state.body_buffered.empty() ) {
             handlers->notify_body_end();
             state.complete = false;
         }
-        return buffer_size( state.body_buffered.data());
+        //return buffer_size( state.body_buffered.data());
+        return {flushed,buffer_size( state.body_buffered.data())};
    }
         
 
@@ -335,7 +340,7 @@ void buffering_request_http_parser<Handlers,RHB>::reset()
     return i->reset();
 }
 template <class Handlers, class RHB>
-size_t buffering_request_http_parser<Handlers,RHB>::flush()
+auto buffering_request_http_parser<Handlers,RHB>::flush() -> flush_info_t
 {
     return i->flush();
 }

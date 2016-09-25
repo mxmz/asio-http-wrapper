@@ -6,11 +6,11 @@ INCLUDE_DIRECTORIES( . ./include/ ../include)
 LINK_DIRECTORIES( ${LINK_DIRECTORIES} )	
 
 
-ADD_EXECUTABLE ( buffpipe1                  buffpipe1.cpp )
-ADD_EXECUTABLE ( ring_buffer_test           ring_buffer_test.cpp)
-ADD_EXECUTABLE ( stream_pipe_test           stream_pipe_test.cpp)
-ADD_EXECUTABLE ( http_parser_test           http_parser_test.cpp ../http-parser/http_parser.c)
-ADD_EXECUTABLE ( http_inbound_connection_test   http_inbound_connection_test.cpp ../http-parser/http_parser.c)
+ADD_EXECUTABLE ( buffpipe1                  buffpipe1.cpp test.cpp)
+ADD_EXECUTABLE ( ring_buffer_test           ring_buffer_test.cpp test.cpp)
+ADD_EXECUTABLE ( stream_pipe_test           stream_pipe_test.cpp test.cpp)
+ADD_EXECUTABLE ( http_parser_test           http_parser_test.cpp test.cpp ../http-parser/http_parser.c )
+ADD_EXECUTABLE ( http_inbound_connection_test   http_inbound_connection_test.cpp test.cpp ../http-parser/http_parser.c)
 
 
 TARGET_LINK_LIBRARIES( buffpipe1                    -lboost_system )
@@ -34,4 +34,8 @@ ENABLE_TESTING()
 
 ADD_TEST( NAME http_parser_test COMMAND http_parser_test )
 ADD_TEST( NAME stream_pipe_test COMMAND stream_pipe_test )
-ADD_TEST( NAME http_inbound_connection_test COMMAND http_inbound_connection_test )
+ADD_TEST( NAME ring_buffer_test COMMAND ring_buffer_test )
+ADD_TEST( NAME http_inbound_connection_test COMMAND http_inbound_connection_test ENVIRONMENT )
+
+
+

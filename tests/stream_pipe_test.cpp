@@ -27,30 +27,11 @@ using namespace std;
 
 using namespace boost;
 
-
-
-template< typename Type >
-Type getenv(const char* name, Type dflt = Type() ) {
-    const char * val = getenv(name);
-    return val == nullptr ? dflt  : boost::lexical_cast<Type>(val);
-}
-
-bool verbose = getenv<bool>("VERBOSE");
-
-#define cerr if(verbose) cerr 
+#include "test.hxx"
 
 
 typedef mxmz::stream_pipe_tmpl< asio::ip::tcp::socket> tcp_socket_pipe;
 
-
-std::string make_random_string(int c) {
-    std::string s;
-    s.reserve(c);
-    for ( int i = 0; i < c; ++i) {
-        s.push_back( 'a' + rand() % 26 );
-    }
-    return s;
-}
 
 using namespace std;
 
@@ -166,14 +147,7 @@ void test1()
         //cout << "#" << std::flush;        
 }
 
-void run(const char* name, void(* func)(), int count )
-{
-    cout << name << " ... " << std::flush ;
-    for( int i = 0; i < count ; ++i) func(); 
-    cout << name << " ok" << endl;
-}
 
-#define RUN(f,count) run( #f, &f, count )
 
 int main() {
     srand(time(nullptr));

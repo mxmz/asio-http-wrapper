@@ -49,40 +49,13 @@ class buffering_request_http_parser  {
 
         void reset();
         size_t parse(const char* buffer, size_t len );
-        size_t flush();
+
+        typedef std::pair<size_t,size_t>    flush_info_t;
+        
+        flush_info_t flush();
 };
   
-//ypedef std::function< void ( boost::system::error_code ec ) >                  write_header_completion_t;
 
-//typedef std::function< void ( boost::system::error_code ec, std::size_t bytes_transferred ) > write_body_completion_t;
-
-/*
-
-template< class SrcStream >
-class http_inbound_connection {
-    class detail;
-    std::unique_ptr<detail> i;
-
-public:
-    
-    http_inbound_connection( SrcStream&& socket );
-
-
-    
-
-    typedef std::function< void ( boost::system::error_code ec, http_request_header_ptr ) > read_header_completion_t;
-    void async_read_request_header( read_header_completion_t );
-
-    typedef std::function< void ( boost::system::error_code ec, std::size_t bytes_transferred ) > read_body_completion_t;
-    void async_read_some( boost::asio::mutable_buffers_1, read_body_completion_t );
-
-//    void async_write_response_header( http_response_header_ptr, write_header_completion_t );
-
-//    void async_write_some( boost::asio::mutable_buffers_1, write_body_completion_t );
-
-};
-
-*/
 
 } //namespace xmmz
 

@@ -11,7 +11,6 @@
 #include <future>
 
 #include "http_inbound_connection.hxx"
-#include "boost/lexical_cast.hpp"
 #include "ring_buffer.hxx"
 
 using namespace boost::asio;
@@ -30,52 +29,9 @@ using std::endl;
 using std::min;
 using std::shared_ptr;
 
-template< typename Type >
-Type getenv(const char* name ) {
-    const char * val = getenv(name);
-    if ( val == nullptr ) {
-        return Type();
-    } else {
-        return boost::lexical_cast<Type>(val);
-    }
-}
 
-bool verbose = getenv<bool>("VERBOSE");
+#include "test.hxx"
 
-#define cerr if(verbose) cerr 
-
-
-std::string make_random_string(int c, int from,  int to ) {
-    std::string s;
-    s.reserve(c);
-    for ( int i = 0; i < c; ++i) {
-          s.push_back( from  + rand() % (to-from) );
-    }
-    return s;
-}
-
-
-/*
-typedef mxmz::http_inbound_connection<ip::tcp::socket> conn_t;
-struct body_reader : public enable_shared_from_this<body_reader> {
-    shared_ptr<conn_t>  conn;
-
-    char buf[ 1024 ];
-
-    void start_read_body() {
-            auto _this = shared_from_this(); 
-            conn->async_read_some( buffer(buf, 1024 ), [this,_this]( boost::system::error_code ec, size_t bytes_transferred) {
-                cerr  << "read " << bytes_transferred << endl;
-                    if ( ! ec ) {
-                        cerr.write( buf, bytes_transferred);
-                        start_read_body();
-                    }
-            });
-
-    }
-} ;
-
-*/
 
 using namespace mxmz;
 
@@ -120,8 +76,8 @@ class parser  {
         return prs->paused();
     }
 
-    size_t flush()  {
-        return prs->flush();
+    void flush()  {
+        prs->flush();
     }
  
     
@@ -212,6 +168,10 @@ class connection:
 
     public:
 
+    auto      buffered_data ()  {
+            return rb.data() ;
+    }
+
     connection ( ip::tcp::socket&& s, size_t buffer_threshold, size_t buffer_size) :
                 base_t(buffer_threshold),
                 socket( move(s)), 
@@ -244,30 +204,51 @@ class connection:
     shared_ptr< BodyObserver> make_body_observer();
 
     template<   typename ReadHandler >
+     void post(ReadHandler handler) {
+                socket.get_io_service().post(handler);
+     }
+
+    size_t counter = 0;
+
+    template<   typename ReadHandler >
      void async_read(ReadHandler handler) {
-         
-         if ( this->flush() ) {
+         if ( this->flush().first ) { // something was flushed
              cerr << "async_read: flush " << endl;
              socket.get_io_service().post([handler]() {
                  handler( boost::system::error_code() );
              });
          } else {
-          cerr << "async_read: start" << endl;
+          
           auto towrite = rb.prepare();
+          cerr << "async_read: start: towrite " <<buffer_size(towrite) << endl;
           auto self( this->shared_from_this() );
-          socket.async_read_some( towrite, [this,self, handler]( boost::system::error_code ec, std::size_t bytes ) {
-              cerr << "async_read_some " << bytes << endl;
+                     
+          auto processData = [this,self, handler]( boost::system::error_code ec, std::size_t bytes ) {
+              counter += bytes;
+              cerr << "<<<<<<<<<<<<<<<<<<<<<<<< connection socket.async_read_some bytes: " << bytes <<  " " << counter << endl;
               rb.commit(bytes);
               auto toread = rb.data();
+              cerr << "connection::async_read_some parsing  " << buffer_size(toread) << endl;
               size_t consumed = this->parse( buffer_cast<const char*>(toread), buffer_size(toread)  );
-                 
+              cerr << "connection::async_read_some parsed: " << consumed << " " << this->paused()  << " " <<  ec <<  " " << buffer_size(toread) << endl;
               if ( consumed == 0 and not this->paused() and not ec ) {
                             async_read(handler);
-                } else {
-                        rb.consume(consumed);
-                        handler( ec );
-                }
-           });  
+              } else {
+                  rb.consume(consumed);
+                  if ( this->flush().second ) { // still something to flush
+                      ec = boost::system::error_code() ;
+                  }
+                  handler( ec );
+                  
+              }
+           };
+           if ( rb.readable() ) {
+               socket.get_io_service().post([processData]() {
+                   processData( boost::system::error_code(), 0  );
+               });
+           } else {
+               socket.async_read_some( towrite, processData );
+           }
          }
     }
 
@@ -280,6 +261,10 @@ class body_reader : public std::enable_shared_from_this< body_reader<RequestObse
     conn_ptr          cnn;
     
     public:
+
+    conn_ptr conn() const {
+        return cnn;
+    }
 
     body_reader()  {
 
@@ -298,13 +283,15 @@ class body_reader : public std::enable_shared_from_this< body_reader<RequestObse
     bool                            completed = false;
 
     size_t handle_body_chunk( const char* p , size_t l ) {
-        cerr << "handle_body_chunk: " << l << endl;
+        cerr << "handle_body_chunk: got " << l <<  " avail " << buffer_size(current_buffer) << endl;
         size_t used = buffer_copy( current_buffer, const_buffers_1(p,l) );
         current_buffer = current_buffer + used;
+        cerr << "handle_body_chunk: used " << used << endl;
         return used;
     }
 
     void notify_body_end() {
+            cerr << __FUNCTION__ << endl;
             completed = true;
     }
 
@@ -312,23 +299,28 @@ class body_reader : public std::enable_shared_from_this< body_reader<RequestObse
     void async_read_some(
         const boost::asio::mutable_buffer& buffer,
             ReadHandler handler) {
-                    current_buffer = buffer;
-                    size_t origlen = buffer_size(buffer);
-                    auto self( this->shared_from_this() );
-                    cnn->async_read( [this,self,origlen,handler](boost::system::error_code ec) {
-                        size_t len = origlen - buffer_size(current_buffer);
-                        if ( ec ) {
-                           handler( ec,  len  );
-                        } else if ( len ) {
-                            handler( boost::system::error_code(), len  );
-                        } else {
-                            if ( completed ) {
-                                    handler( boost::asio::error::eof, len  );
+                    cerr << "body_reader async_read_some completed  " << completed << endl;
+                    if ( completed ) {
+                            cnn->post( [handler]() {
+                                  handler(boost::asio::error::eof, 0);      
+                            } );
+                    } else {
+                        current_buffer = buffer;
+                        size_t origlen = buffer_size(buffer);
+                        auto self( this->shared_from_this() );
+                        cnn->async_read( [this,self,origlen,handler](boost::system::error_code ec) {
+                            size_t len = origlen - buffer_size(current_buffer);
+                            cerr << "body_reader async_read_some lambda  " << ec << endl;
+                            if ( completed ) ec = boost::asio::error::eof;  
+                            if ( ec ) {
+                            handler( ec,  len  );
+                            } else if ( len ) {
+                                handler( boost::system::error_code(), len  );
                             } else {
                                 async_read_some(current_buffer, handler);
                             }
-                        }
-                    } );
+                        } );
+                    }
             }
 };
 
@@ -342,6 +334,11 @@ class request_reader   :
 
     conn_ptr cnn;
     public:
+
+
+    conn_ptr conn() const {
+        return cnn;
+    }
     
     request_reader( conn_ptr p ) :
         cnn(p) {
@@ -407,18 +404,23 @@ struct test_reader : std::enable_shared_from_this<test_reader> {
 
     std::string body;
     mxmz::ring_buffer rb;
+    std::promise<bool> finished;
 
-    test_reader() : rb(1024) {}     
+    test_reader(size_t buffer_size ) : rb(buffer_size) {
+        
+    }     
 
     void start() {
         cerr << "test_reader: start " << endl;
         auto self( this->shared_from_this() );
         boost::asio::mutable_buffers_1 buff(rb.prepare() );
         s->async_read_some( buff, [buff,this,self](boost::system::error_code ec, size_t l)  {
-                cerr << "test_reader: " << l << endl;
+                cerr << "test_reader: " << l <<  " " << ec << endl;
                 body.append( buffer_cast<const char*>(buff), l );
+                cerr.write( buffer_cast<const char*>(buff), l ) << endl;
                 if ( ec ) {
                         cerr << "test_reader: " << ec << endl;
+                        finished.set_value(true);
                 } else {
                        start();
                 }
@@ -426,14 +428,21 @@ struct test_reader : std::enable_shared_from_this<test_reader> {
     }
 };
 
+int init() {
+    srand(time(nullptr));
+    return 0;
+}
 
 
-
-
+int _ = init();
 
 int srv_port = 60000 + (rand()%5000);
 
 void test2() {
+    size_t bodybuffer_size = rand() % 2048 + 10;
+    size_t readbuffer_size = rand() % 2048 + 10;
+    size_t testreader_readbuffer_size = rand() % 2048 + 10;
+
     io_service  ios;
        
     ip::tcp::resolver resolver(ios);
@@ -455,10 +464,15 @@ void test2() {
     typedef body_reader<request_reader> body_reader_t;
     typedef connection<request_reader, body_reader_t > conn_t;
 
-    auto tr = std::make_shared<test_reader>();
+    
+    auto tr = std::make_shared<test_reader>(testreader_readbuffer_size);
+    auto srv_finished_future = tr->finished.get_future();
 
-    function<void()> start_accept = [tr,&acceptor,&socket,&start_accept]() {
-        acceptor.async_accept( socket, [tr,&acceptor,&socket,&start_accept](boost::system::error_code ec)
+
+    
+
+    function<void()> start_accept = [tr,&acceptor,&socket,&start_accept,bodybuffer_size, readbuffer_size]() {
+        acceptor.async_accept( socket, [tr,&acceptor,&socket,&start_accept,bodybuffer_size, readbuffer_size](boost::system::error_code ec)
         {
             if (!acceptor.is_open())
             {
@@ -469,7 +483,7 @@ void test2() {
             {
                 cerr << "new connnection" << endl;
                
-                auto conn = make_shared<conn_t>( move(socket), 1024, 1024 ) ;
+                auto conn = make_shared<conn_t>( move(socket), bodybuffer_size, readbuffer_size ) ;
                 auto rreader = conn->make_request_observer();
                 rreader->async_read_request( [tr,conn]( boost::system::error_code ec, 
                                                      request_reader::http_request_header_ptr h,  
@@ -489,18 +503,21 @@ void test2() {
     std::promise<bool>   srv_ready;
     auto srv_ready_future = srv_ready.get_future();
 
-    auto b1 = make_random_string( 1042 + rand() % 10042, 0, 256 );
+
+    auto b1 = make_random_string( 1042 + rand() % 10042, 'a', 'z' +1  );
 
     //auto b1 = make_random_string( 42 + rand() % 42, 'a', 'z' );
     
 
     string bodylen = boost::lexical_cast<string>( b1.size() );
 
-    auto rand_head_name1 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 26 );
+    auto rand_head_name1 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 1 );
     auto rand_head_value1 = make_random_string(1 + rand() % 1042, 'a', 126  );
 
     auto rand_head_name2 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 26 );
     auto rand_head_value2 = make_random_string(1 + rand() % 1042, 'a', 126  );
+
+    auto garbage = make_random_string(1 + rand() % 1042, 'A', 'Z'+ 1 );
 
     const string s1 = "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
                       "Accept: */*\r\n"
@@ -509,10 +526,10 @@ void test2() {
                       "Content-Length: " + bodylen + "\r\n"
                       + rand_head_name2 + ": " + rand_head_value2 + "\r\n"  
                       "\r\n"
-                      + b1;
+                      + b1 + garbage;
         
 
-    thread t( [s1,f = move(srv_ready_future)]() {
+    thread t( [s1,f = move(srv_ready_future), f2 = move(srv_finished_future)]() {
         io_service ios;
         ip::tcp::socket conn(ios);
         f.wait();
@@ -524,14 +541,16 @@ void test2() {
         const char* p = source.data();
         const char* end = p + source.size();
         while( p != end ) {
-            size_t len = min( long(1024 + rand() % 1024)  , (end-p) );
+            size_t len = min( long(1024 + rand() % 2048)  , (end-p) );
             boost::system::error_code ec;
             auto rc = conn.write_some( const_buffers_1(p, len), ec );
-            cerr << "t written " << rc << "  " << ec << endl;
             p += rc;
+            cerr << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> t written " << rc << "  " << ec << " remain " << (end-p) <<  endl;
             std::this_thread::sleep_for( chrono::microseconds(( rand() % 100 ) / 96 ));
+
         }
         //std::this_thread::sleep_for( chrono::seconds( 1 ));
+        f2.wait_for(chrono::seconds(10));
     });
    
 
@@ -543,29 +562,34 @@ void test2() {
 
         cerr << tr->body.size() << endl;
         cerr << b1.size() << endl;
+        cerr << bodybuffer_size << endl;
+        cerr << readbuffer_size << endl;
         assert( tr->body ==  b1 );
         assert( tr->h );
         assert( tr->h->method == "POST" );
         assert( tr->h->url == "/post_identity_body_world?q=search#hey" );
         assert( (*tr->h)[rand_head_name1] == rand_head_value1 );
         assert( (*tr->h)[rand_head_name2] == rand_head_value2 );
+        
+        auto buffered = tr->s->conn()->buffered_data();
+        std::string buffered_str( buffer_cast<const char*>(buffered), buffer_size(buffered) );
+
+        cerr << buffered_str << endl;
+        cerr << garbage << endl;
+
+        cerr << garbage.find(buffered_str) << endl;
+        assert( garbage.find(buffered_str) == 0 );
+        
 
 } 
 
 
-void run(const char* name, void(* func)(), int count )
-{
-    cout << name << " ... " << std::flush ;
-    for( int i = 0; i < count ; ++i) func(); 
-    cout << name << " ok" << endl;
-}
 
-#define RUN(f,count) run( #f, &f, count )
 
 int main() {
-    srand(time(nullptr));
-    RUN( test1, verbose ? 1: 1000 );
-    RUN( test2, verbose ? 1: 1000 );
+
+    RUN( test1, verbose ? 10: 1000 );
+    RUN( test2, verbose ? 1000: 3000 );
 }
 
 

@@ -13,20 +13,7 @@
 
 using namespace std;
 
-
-template< typename Type >
-Type getenv(const char* name ) {
-    const char * val = getenv(name);
-    if ( val == nullptr ) {
-        return Type();
-    } else {
-        return boost::lexical_cast<Type>(val);
-    }
-}
-
-bool verbose = getenv<bool>("VERBOSE");
-
-#define cerr if(verbose) cerr 
+#include "test.hxx"
 
 class handlers_interface {
 public:
@@ -339,15 +326,6 @@ struct  my_parser_pausing :   public base_handlers<my_parser_pausing>,
     using mxmz::http_parser_base<my_parser_pausing>::http_parser_base;
 };
 
-std::string make_random_string(int c, int from,  int to ) {
-    std::string s;
-    s.reserve(c);
-    for ( int i = 0; i < c; ++i) {
-          s.push_back( from  + rand() % (to-from) );
-    }
-    return s;
-}
-
 
 
 bool test_readparse_pausing( const string&s, my_parser_pausing& parser ) {
@@ -411,14 +389,7 @@ void test6()
 
 }
 
-void run(const char* name, void(* func)(), int count )
-{
-    cout << name << " ... " << std::flush ;
-    for( int i = 0; i < count ; ++i) func(); 
-    cout << name << " ok" << endl;
-}
 
-#define RUN(f,count) run( #f, &f, count )
 
 int main() {
     srand ( time(nullptr));
