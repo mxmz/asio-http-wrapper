@@ -164,7 +164,7 @@ class connection:
     ip::tcp::socket     socket;
     mxmz::ring_buffer   rb;
     RequestObserver*    request_notifier;
-    BodyObserver*        body_handler;
+    BodyObserver*       body_handler;
 
     public:
 
@@ -212,48 +212,42 @@ class connection:
 
     template<   typename ReadHandler >
      void async_read(ReadHandler handler) {
-         if ( this->flush().first ) { // something was flushed
-             cerr << "async_read: flush " << endl;
-             socket.get_io_service().post([handler]() {
-                 handler( boost::system::error_code() );
-             });
-         } else {
+
           
-          auto towrite = rb.prepare();
-          cerr << "async_read: start: towrite " <<buffer_size(towrite) << endl;
           auto self( this->shared_from_this() );
                      
           auto processData = [this,self, handler]( boost::system::error_code ec, std::size_t bytes ) {
-              counter += bytes;
-              cerr << "<<<<<<<<<<<<<<<<<<<<<<<< connection socket.async_read_some bytes: " << bytes <<  " " << counter << endl;
-              rb.commit(bytes);
-              auto toread = rb.data();
-              cerr << "connection::async_read_some parsing  " << buffer_size(toread) << endl;
-              size_t consumed = this->parse( buffer_cast<const char*>(toread), buffer_size(toread)  );
-              cerr << "connection::async_read_some parsed: " << consumed << " " << this->paused()  << " " <<  ec <<  " " << buffer_size(toread) << endl;
-              if ( consumed == 0 and not this->paused() and not ec ) {
-                            async_read(handler);
-              } else {
-                  rb.consume(consumed);
-                  if ( this->flush().second ) { // still something to flush
-                      ec = boost::system::error_code() ;
-                  }
-                  handler( ec );
-                  
-              }
+                counter += bytes;
+                cerr << "<<<<<<<<<<<<<<<<<<<<<<<< connection socket.async_read_some bytes: " << bytes <<  " " << counter << endl;
+                rb.commit(bytes);
+                
+                auto toread = rb.data();
+                cerr << "connection::async_read_some parsing  " << buffer_size(toread) << endl;
+                size_t consumed = this->parse( buffer_cast<const char*>(toread), buffer_size(toread)  );
+                cerr << "connection::async_read_some parsed: " << consumed << " " << this->paused()  << " " <<  ec <<  " " << buffer_size(toread) << " " << this->buffering() << endl;
+                rb.consume(consumed);
+                if ( this->buffering() ) { // still something to flush
+                        ec = boost::system::error_code() ;
+                }
+                handler( ec );
            };
-           if ( rb.readable() ) {
+
+           if ( rb.readable() or this->buffering() ) {
+               cerr << "async_read: start: unparsed stuff" << endl;
                socket.get_io_service().post([processData]() {
                    processData( boost::system::error_code(), 0  );
                });
            } else {
+                auto towrite = rb.prepare();
+               cerr << "async_read: start: towrite " <<buffer_size(towrite) << endl;
                socket.async_read_some( towrite, processData );
            }
          }
-    }
 
 };
 
+
+/* ---------------------------------------------------------- body_reader ----------------- */
 template< class RequestObserver >
 class body_reader : public std::enable_shared_from_this< body_reader<RequestObserver>>  {
     typedef shared_ptr< connection<RequestObserver, body_reader<RequestObserver> > > conn_ptr;
@@ -325,6 +319,8 @@ class body_reader : public std::enable_shared_from_this< body_reader<RequestObse
 };
 
 
+
+/* ---------------------------------------------------------- request_reader ----------------- */
 
 class request_reader   :
     public std::enable_shared_from_this< request_reader >
@@ -589,7 +585,7 @@ void test2() {
 int main() {
 
     RUN( test1, verbose ? 10: 1000 );
-    RUN( test2, verbose ? 1000: 3000 );
+    RUN( test2, verbose ? 10000: 3000 );
 }
 
 

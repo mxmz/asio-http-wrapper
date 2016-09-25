@@ -53,6 +53,7 @@ class buffering_request_http_parser  {
         typedef std::pair<size_t,size_t>    flush_info_t;
         
         flush_info_t flush();
+        bool         buffering() const;
 };
   
 

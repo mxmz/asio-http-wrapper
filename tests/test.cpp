@@ -8,7 +8,7 @@
 template< typename Type >
 Type getenv(const char* name, Type dflt = Type() ) {
     const char * val = getenv(name);
-    if ( val == nullptr ) {
+    if ( val == nullptr or *val == '\0') {
         return dflt;
     } else {
         return boost::lexical_cast<Type>(val);
@@ -47,10 +47,10 @@ void run(const char* name, void(* func)(), int count )
     cout << name << " ... " << std::flush ;
     int i = 0;
     for( i = 0; i < count ; ++i) { 
+        func();
         if ( system_clock::now() > endtime  ) {
             break;
         }
-        func();
     } 
     cout << name << " ok " << i  << endl;
 }

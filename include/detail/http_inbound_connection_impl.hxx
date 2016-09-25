@@ -211,97 +211,14 @@ public:
         return {flushed,buffer_size( state.body_buffered.data())};
    }
         
-
+   bool buffering() const {
+       return buffer_size(state.body_buffered.data()) > 0;
+   } 
     
 };
          
+   
 
-    
-/*
-
-    void 
-    async_read_request_header( read_header_completion_t  comp ) {
-        if ( current->header_ready ) {
-            stream.get_io_service().post( [this,comp](){
-                boost::system::error_code ec;
-               comp(ec, move(current->header_ready));
-            });
-        } else {
-            stream.async_read_some(boost::asio::buffer(buffer),
-                    [this,c = move(comp)](boost::system::error_code ec, std::size_t bytes_transferred)
-            {
-                if (!ec)
-                {
-                    size_t read = this->parse( buffer.data(), bytes_transferred );
-                    assert( read == bytes_transferred );
-                    async_read_request_header(move(c));
-                } else {
-                    c( ec, nullptr );
-                }
-            } );
-        } 
-    }
-
-    
-
-    
-
-    void async_read_some( mutable_buffers_1 buff, read_body_completion_t comp ){
-        if ( size_t consumed = current->consume_body(buff)) {
-            stream.get_io_service().post([this,comp,consumed]{
-                boost::system::error_code ec;
-                comp( ec, consumed );
-            });
-        } else {
-            size_t max_body_read = buffer_size(buff);
-            stream.async_read_some(boost::asio::buffer(buffer, max_body_read),
-                    [this,comp,buff](boost::system::error_code ec, std::size_t bytes_transferred)
-            {
-                if (!ec)
-                {
-                    size_t consumed = 0;
-                    body_consumer = [this,&buff,&consumed]( const char* p, size_t l)->size_t {
-                            consumed = buffer_copy( buff, const_buffers_1(p,l) );
-                            cerr << "consume direct: " << consumed << endl;
-                            return consumed;
-                    };
-                   
-                    size_t read = this->parse( buffer.data(), bytes_transferred );
-                    assert( read == bytes_transferred );
-                    
-                    comp( ec, consumed );
-                } else {
-                    comp( ec, 0 );
-                }
-            });
-        }
-    }
-
-  */  
-    
-
-
-/*
-
-template< class SrcStream >
-void 
-http_inbound_connection<SrcStream>::async_read_request_header( read_header_completion_t  comp ) {
-    i->async_read_request_header(comp);
-}
-
-template< class SrcStream >
-void 
-http_inbound_connection<SrcStream>::async_read_some( boost::asio::mutable_buffers_1 buff, read_body_completion_t comp ){
-    i->async_read_some(buff,comp);
-}
-
-
-template< class SrcStream >
-http_inbound_connection<SrcStream>::http_inbound_connection( SrcStream&& s )
-    : i( new detail(move(s)))
-    {}
-
-*/
 
 template <class Handlers, class RHB>
 buffering_request_http_parser<Handlers,RHB>::buffering_request_http_parser(Handlers* hndls, size_t buffer_threshold )
@@ -347,20 +264,24 @@ auto buffering_request_http_parser<Handlers,RHB>::flush() -> flush_info_t
 
 template <class Handlers, class RHB>
 size_t buffering_request_http_parser<Handlers,RHB>::parse(const char* buffer, size_t len)
-{   
-    i->unpause();
-    return i->parse(buffer, len);
+{
+    if ( i->buffering() ) {
+        i->flush();
+        return 0;
+    }
+    if ( len ) {
+        i->unpause();
+        return i->parse(buffer, len);
+    } else {
+        return 0;
+    }
 }
 
-/*
 template <class Handlers, class RHB>
-http_parser_state&& 
-buffering_request_http_parser<Handlers,RHB>::move_state() {
-    return i->move_state();
+bool buffering_request_http_parser<Handlers,RHB>::buffering() const
+{   
+        return i->buffering();
 }
-*/
-
-
 
 
 
