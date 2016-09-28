@@ -15,19 +15,25 @@ namespace mxmz {
 using namespace std;
 
 struct http_request_header {
-    const string method;
-    const string url;
-    const map<string,string> headers;
-    const string& operator[]( const string& v) const;
+    string method;
+    string url;
+    map<string,string> headers;
+    const string& operator[]( const string& k) const;
+    
+    http_request_header( string&& m, string&& u, map<string,string>&& h ) :
+            method( move(m)), 
+            url( move(u)),
+            headers( move(h)) 
+            {}
 };
 
-typedef std::unique_ptr<http_request_header>  http_request_header_ptr;
+typedef std::unique_ptr<const http_request_header>  http_request_header_ptr;
 
 class http_request_header_builder;
 
 /*
     Handlers must implement:
-    -   void notify_header( std::unique_ptr<http_request_header> h )
+    -   void notify_header( http_request_header_ptr h )
     -   size_t handle_body_chunk( const char* p , size_t l )
     -   void notify_body_end()
 

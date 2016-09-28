@@ -39,7 +39,10 @@ class http_request_header_builder {
         }
 
         http_request_header_ptr build() {
-            http_request_header_ptr r( new http_request_header{move(_method), move(_request_uri), move(_headers)} );
+            http_request_header_ptr r( 
+                    new const http_request_header{move(_method), move(_request_uri), move(_headers)} 
+
+                );
             _method.clear(); _request_uri.clear(); _headers.clear();
             return r;
         }

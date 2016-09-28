@@ -46,9 +46,9 @@ class parser  {
 
     }
 
-    std::unique_ptr<http_request_header> header;
+    std::unique_ptr<const http_request_header> header;
 
-    void notify_header( std::unique_ptr<http_request_header> h ) {
+    void notify_header( std::unique_ptr<const http_request_header> h ) {
             header = move(h);
     } 
 
@@ -154,16 +154,15 @@ void test1() {
 }
 
 
-template< class RequestObserver, class BodyObserver >
-class connection: 
-    public   std::enable_shared_from_this< connection<RequestObserver,BodyObserver> >, 
-    public  mxmz::buffering_request_http_parser< connection<RequestObserver,BodyObserver> > {
+template< class BodyObserver >
+class connection_tmpl: 
+    public   std::enable_shared_from_this< connection_tmpl<BodyObserver> >, 
+    public  mxmz::buffering_request_http_parser< connection_tmpl<BodyObserver> > {
 
-    typedef mxmz::buffering_request_http_parser<connection<RequestObserver,BodyObserver>> base_t;
+    typedef mxmz::buffering_request_http_parser<connection_tmpl<BodyObserver>> base_t;
 
     ip::tcp::socket     socket;
     mxmz::ring_buffer   rb;
-    RequestObserver*    request_notifier;
     BodyObserver*       body_handler;
 
     public:
@@ -172,18 +171,14 @@ class connection:
             return rb.data() ;
     }
 
-    connection ( ip::tcp::socket&& s, size_t buffer_threshold, size_t buffer_size) :
+    connection_tmpl ( ip::tcp::socket&& s, size_t buffer_threshold, size_t buffer_size) :
                 base_t(buffer_threshold),
                 socket( move(s)), 
                 rb( buffer_size ),
-                request_notifier(nullptr),
                 body_handler(nullptr) {
     }
     
 
-    void notify_header( std::unique_ptr<http_request_header> h ) {
-            request_notifier->notify_header(move(h));
-    } 
 
     size_t handle_body_chunk( const char* p , size_t l ) {
         return body_handler->handle_body_chunk(p,l);
@@ -195,12 +190,8 @@ class connection:
     void bind( BodyObserver * p) {
         body_handler = p;
     }
-    void bind( RequestObserver * p) {
-        request_notifier = p;
-    }
 
     
-    shared_ptr< RequestObserver> make_request_observer();
     shared_ptr< BodyObserver> make_body_observer();
 
     template<   typename ReadHandler >
@@ -244,13 +235,38 @@ class connection:
            }
          }
 
+
+        typedef std::unique_ptr<const http_request_header>      http_request_header_ptr;
+        typedef shared_ptr< BodyObserver >                      body_reader_ptr ;
+
+        std::unique_ptr< const http_request_header> request_ready;
+
+        void notify_header( std::unique_ptr< const http_request_header> h ) {
+            request_ready = move(h);
+        }    
+
+        template<   typename ReadHandler >
+        void async_read_request(ReadHandler handler) {
+                auto self( this->shared_from_this() );
+                async_read( [this, self, handler](boost::system::error_code ec ) {
+                            cerr << __FUNCTION__ << endl;
+                    if ( ec ) {
+                            handler( ec, http_request_header_ptr(), body_reader_ptr() );
+                    } else if ( request_ready ) {
+                            handler( boost::system::error_code(), move(request_ready), move( make_body_observer() ) );
+                    } else {
+                        async_read_request(handler);
+                    }
+                } );
+        }
+
 };
 
 
 /* ---------------------------------------------------------- body_reader ----------------- */
-template< class RequestObserver >
-class body_reader : public std::enable_shared_from_this< body_reader<RequestObserver>>  {
-    typedef shared_ptr< connection<RequestObserver, body_reader<RequestObserver> > > conn_ptr;
+
+class body_reader : public std::enable_shared_from_this< body_reader>  {
+    typedef shared_ptr< connection_tmpl< body_reader > > conn_ptr;
 
     conn_ptr          cnn;
     
@@ -320,66 +336,10 @@ class body_reader : public std::enable_shared_from_this< body_reader<RequestObse
 
 
 
-/* ---------------------------------------------------------- request_reader ----------------- */
 
-class request_reader   :
-    public std::enable_shared_from_this< request_reader >
-{
-    typedef connection< request_reader,body_reader<request_reader> > conn_t;
-    typedef shared_ptr< conn_t > conn_ptr;
-
-    conn_ptr cnn;
-    public:
-
-
-    conn_ptr conn() const {
-        return cnn;
-    }
-    
-    request_reader( conn_ptr p ) :
-        cnn(p) {
-            cnn->bind(this);
-        }
-    ~request_reader() {
-        cnn->bind(static_cast<decltype(this)>(nullptr));
-    }
-
-    void notify_header( std::unique_ptr<http_request_header> h ) {
-            cerr << __FUNCTION__ << endl;
-            ready = move(h);
-    } 
-
-    typedef std::unique_ptr<http_request_header>        http_request_header_ptr;
-    typedef shared_ptr< body_reader<request_reader> >   body_reader_ptr ;
-
-    std::unique_ptr<http_request_header> ready;
-
-    template<   typename ReadHandler >
-     void async_read_request(ReadHandler handler) {
-            auto self( this->shared_from_this() );
-            cnn->async_read( [this, self, handler](boost::system::error_code ec ) {
-                        cerr << __FUNCTION__ << endl;
-                if ( ec ) {
-                        handler( ec, http_request_header_ptr(), body_reader_ptr() );
-                } else if ( ready ) {
-                        handler( boost::system::error_code(), move(ready), move( cnn->make_body_observer() ) );
-                } else {
-                    async_read_request(handler);
-                }
-            } );
-     }
-};
-
-
-template< class RequestObserver, class BodyObserver >
-shared_ptr< RequestObserver>
-connection<RequestObserver,BodyObserver>::make_request_observer() {
-    return make_shared<RequestObserver>(this->shared_from_this() );
-}
-
-template< class RequestObserver, class BodyObserver >
+template<  class BodyObserver >
 shared_ptr< BodyObserver> 
-connection<RequestObserver,BodyObserver>::make_body_observer() {
+connection_tmpl<BodyObserver>::make_body_observer() {
     return make_shared<BodyObserver>(this->shared_from_this() );
 }
 
@@ -390,13 +350,12 @@ connection<RequestObserver,BodyObserver>::make_body_observer() {
 
 
 
-
-
+typedef connection_tmpl<body_reader> connection;
 
 
 struct test_reader : std::enable_shared_from_this<test_reader> {
-    http_request_header_ptr h;
-    request_reader::body_reader_ptr s;
+    connection::http_request_header_ptr h;
+    connection::body_reader_ptr s;
 
     std::string body;
     mxmz::ring_buffer rb;
@@ -457,40 +416,32 @@ void test2() {
     std::string s;
 
     
-    typedef body_reader<request_reader> body_reader_t;
-    typedef connection<request_reader, body_reader_t > conn_t;
+    typedef body_reader  body_reader_t;
+
+    typedef connection_tmpl< body_reader_t > conn_t;
 
     
     auto tr = std::make_shared<test_reader>(testreader_readbuffer_size);
     auto srv_finished_future = tr->finished.get_future();
-
-
     
 
-    function<void()> start_accept = [tr,&acceptor,&socket,&start_accept,bodybuffer_size, readbuffer_size]() {
-        acceptor.async_accept( socket, [tr,&acceptor,&socket,&start_accept,bodybuffer_size, readbuffer_size](boost::system::error_code ec)
+    function<void()> start_accept = [ tr,&acceptor, &socket, &start_accept, bodybuffer_size, readbuffer_size ]() {
+        acceptor.async_accept( socket, [ tr, &socket, &start_accept, bodybuffer_size, readbuffer_size](boost::system::error_code ec)
         {
-            if (!acceptor.is_open())
-            {
-                return;
-            }
-
-            if (!ec)
+            if (not ec)
             {
                 cerr << "new connnection" << endl;
                
                 auto conn = make_shared<conn_t>( move(socket), bodybuffer_size, readbuffer_size ) ;
-                auto rreader = conn->make_request_observer();
-                rreader->async_read_request( [tr,conn]( boost::system::error_code ec, 
-                                                     request_reader::http_request_header_ptr h,  
-                                                     request_reader::body_reader_ptr br  ) {
+                conn->async_read_request( [tr,conn]( boost::system::error_code ec, 
+                                                     connection::http_request_header_ptr h,  
+                                                     connection::body_reader_ptr br  ) {
                     cerr << ec <<  endl;
                         cerr << h->method << endl;
                         cerr << h->url << endl;
                         tr->s = br;
                         tr->h = move(h);
                         tr->start();
-
                 } );
             }
             //start_accept();
@@ -574,7 +525,7 @@ void test2() {
         cerr << garbage << endl;
 
         cerr << garbage.find(buffered_str) << endl;
-        assert( garbage.find(buffered_str) == 0 );
+        assert( garbage.find(buffered_str) == 0 ); // extra garbage must appear at the beginning of buffered data, if any 
         
 
 } 
@@ -585,7 +536,7 @@ void test2() {
 int main() {
 
     RUN( test1, verbose ? 10: 1000 );
-    RUN( test2, verbose ? 10000: 3000 );
+    RUN( test2, verbose ? 10: 3000 );
 }
 
 
