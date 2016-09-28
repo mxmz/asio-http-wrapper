@@ -83,14 +83,14 @@ class buffering_request_http_parser  {
                         cerr << head->method << endl;
                         cerr << head->url << endl;
 
+                        body->async_read_some( ... 
                         // ....
 
             } );
               
 
           }
-               
-         
+           
       }
 */
 
