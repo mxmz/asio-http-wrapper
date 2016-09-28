@@ -68,6 +68,31 @@ class buffering_request_http_parser  {
         bool         buffering() const;
 };
   
+/*
+    usage:
+
+      typedef mxmz::connection_tmpl<mxmz::body_reader> connection;
+
+      acceptor.async_accept( socket, [ &socket ](boost::system::error_code ec) {
+          if ( ! ec ) {
+                auto conn = make_shared<connection>( move(socket), ... );
+                conn->async_read_request( [conn]( boost::system::error_code ec, 
+                                                     connection::http_request_header_ptr head,  
+                                                     connection::body_reader_ptr body  ) {
+                    cerr << ec <<  endl;
+                        cerr << head->method << endl;
+                        cerr << head->url << endl;
+
+                        // ....
+
+            } );
+              
+
+          }
+               
+         
+      }
+*/
 
 
 
