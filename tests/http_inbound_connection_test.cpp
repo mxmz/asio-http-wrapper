@@ -28,7 +28,7 @@ using std::cout;
 using std::endl;
 using std::min;
 using std::shared_ptr;
-
+using std::function;
 
 #include "test.hxx"
 
@@ -153,204 +153,18 @@ void test1() {
 
 }
 
-
-template< class BodyObserver >
-class connection_tmpl: 
-    public   std::enable_shared_from_this< connection_tmpl<BodyObserver> >, 
-    public  mxmz::buffering_request_http_parser< connection_tmpl<BodyObserver> > {
-
-    typedef mxmz::buffering_request_http_parser<connection_tmpl<BodyObserver>> base_t;
-
-    ip::tcp::socket     socket;
-    mxmz::ring_buffer   rb;
-    BodyObserver*       body_handler;
-
-    public:
-
-    auto      buffered_data ()  {
-            return rb.data() ;
-    }
-
-    connection_tmpl ( ip::tcp::socket&& s, size_t buffer_threshold, size_t buffer_size) :
-                base_t(buffer_threshold),
-                socket( move(s)), 
-                rb( buffer_size ),
-                body_handler(nullptr) {
-    }
-    
-
-
-    size_t handle_body_chunk( const char* p , size_t l ) {
-        return body_handler->handle_body_chunk(p,l);
-    }
-
-    void notify_body_end() {
-            body_handler->notify_body_end();
-    }
-    void bind( BodyObserver * p) {
-        body_handler = p;
-    }
-
-    
-    shared_ptr< BodyObserver> make_body_observer();
-
-    template<   typename ReadHandler >
-     void post(ReadHandler handler) {
-                socket.get_io_service().post(handler);
-     }
-
-    size_t counter = 0;
-
-    template<   typename ReadHandler >
-     void async_read(ReadHandler handler) {
-
-          
-          auto self( this->shared_from_this() );
-                     
-          auto processData = [this,self, handler]( boost::system::error_code ec, std::size_t bytes ) {
-                counter += bytes;
-                cerr << "<<<<<<<<<<<<<<<<<<<<<<<< connection socket.async_read_some bytes: " << bytes <<  " " << counter << endl;
-                rb.commit(bytes);
-                
-                auto toread = rb.data();
-                cerr << "connection::async_read_some parsing  " << buffer_size(toread) << endl;
-                size_t consumed = this->parse( buffer_cast<const char*>(toread), buffer_size(toread)  );
-                cerr << "connection::async_read_some parsed: " << consumed << " " << this->paused()  << " " <<  ec <<  " " << buffer_size(toread) << " " << this->buffering() << endl;
-                rb.consume(consumed);
-                if ( this->buffering() ) { // still something to flush
-                        ec = boost::system::error_code() ;
-                }
-                handler( ec );
-           };
-
-           if ( rb.readable() or this->buffering() ) {
-               cerr << "async_read: start: unparsed stuff" << endl;
-               socket.get_io_service().post([processData]() {
-                   processData( boost::system::error_code(), 0  );
-               });
-           } else {
-                auto towrite = rb.prepare();
-               cerr << "async_read: start: towrite " <<buffer_size(towrite) << endl;
-               socket.async_read_some( towrite, processData );
-           }
-         }
-
-
-        typedef std::unique_ptr<const http_request_header>      http_request_header_ptr;
-        typedef shared_ptr< BodyObserver >                      body_reader_ptr ;
-
-        std::unique_ptr< const http_request_header> request_ready;
-
-        void notify_header( std::unique_ptr< const http_request_header> h ) {
-            request_ready = move(h);
-        }    
-
-        template<   typename ReadHandler >
-        void async_read_request(ReadHandler handler) {
-                auto self( this->shared_from_this() );
-                async_read( [this, self, handler](boost::system::error_code ec ) {
-                            cerr << __FUNCTION__ << endl;
-                    if ( ec ) {
-                            handler( ec, http_request_header_ptr(), body_reader_ptr() );
-                    } else if ( request_ready ) {
-                            handler( boost::system::error_code(), move(request_ready), move( make_body_observer() ) );
-                    } else {
-                        async_read_request(handler);
-                    }
-                } );
-        }
-
-};
-
+using mxmz::connection_tmpl;
+using namespace std;
 
 /* ---------------------------------------------------------- body_reader ----------------- */
 
-class body_reader : public std::enable_shared_from_this< body_reader>  {
-    typedef shared_ptr< connection_tmpl< body_reader > > conn_ptr;
-
-    conn_ptr          cnn;
-    
-    public:
-
-    conn_ptr conn() const {
-        return cnn;
-    }
-
-    body_reader()  {
-
-    }
-    body_reader( conn_ptr p ) :
-        cnn(p),
-        current_buffer((char*)"",0) 
-        {
-            cnn->bind(this);
-        }
-    ~body_reader() {
-        cnn->bind(static_cast<decltype(this)>(nullptr));
-    }
-
-    boost::asio::mutable_buffer  current_buffer;
-    bool                            completed = false;
-
-    size_t handle_body_chunk( const char* p , size_t l ) {
-        cerr << "handle_body_chunk: got " << l <<  " avail " << buffer_size(current_buffer) << endl;
-        size_t used = buffer_copy( current_buffer, const_buffers_1(p,l) );
-        current_buffer = current_buffer + used;
-        cerr << "handle_body_chunk: used " << used << endl;
-        return used;
-    }
-
-    void notify_body_end() {
-            cerr << __FUNCTION__ << endl;
-            completed = true;
-    }
-
-    template< class ReadHandler > 
-    void async_read_some(
-        const boost::asio::mutable_buffer& buffer,
-            ReadHandler handler) {
-                    cerr << "body_reader async_read_some completed  " << completed << endl;
-                    if ( completed ) {
-                            cnn->post( [handler]() {
-                                  handler(boost::asio::error::eof, 0);      
-                            } );
-                    } else {
-                        current_buffer = buffer;
-                        size_t origlen = buffer_size(buffer);
-                        auto self( this->shared_from_this() );
-                        cnn->async_read( [this,self,origlen,handler](boost::system::error_code ec) {
-                            size_t len = origlen - buffer_size(current_buffer);
-                            cerr << "body_reader async_read_some lambda  " << ec << endl;
-                            if ( completed ) ec = boost::asio::error::eof;  
-                            if ( ec ) {
-                            handler( ec,  len  );
-                            } else if ( len ) {
-                                handler( boost::system::error_code(), len  );
-                            } else {
-                                async_read_some(current_buffer, handler);
-                            }
-                        } );
-                    }
-            }
-};
-
-
-
-
-template<  class BodyObserver >
-shared_ptr< BodyObserver> 
-connection_tmpl<BodyObserver>::make_body_observer() {
-    return make_shared<BodyObserver>(this->shared_from_this() );
-}
 
 
 
 
 
 
-
-
-typedef connection_tmpl<body_reader> connection;
+typedef connection_tmpl<mxmz::body_reader> connection;
 
 
 struct test_reader : std::enable_shared_from_this<test_reader> {
@@ -423,7 +237,6 @@ void test2() {
     
     auto tr = std::make_shared<test_reader>(testreader_readbuffer_size);
     auto srv_finished_future = tr->finished.get_future();
-    
 
     function<void()> start_accept = [ tr,&acceptor, &socket, &start_accept, bodybuffer_size, readbuffer_size ]() {
         acceptor.async_accept( socket, [ tr, &socket, &start_accept, bodybuffer_size, readbuffer_size](boost::system::error_code ec)
@@ -518,7 +331,7 @@ void test2() {
         assert( (*tr->h)[rand_head_name1] == rand_head_value1 );
         assert( (*tr->h)[rand_head_name2] == rand_head_value2 );
         
-        auto buffered = tr->s->conn()->buffered_data();
+        auto buffered = tr->s->connection()->buffered_data();
         std::string buffered_str( buffer_cast<const char*>(buffered), buffer_size(buffered) );
 
         cerr << buffered_str << endl;

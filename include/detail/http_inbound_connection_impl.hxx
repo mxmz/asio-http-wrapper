@@ -288,6 +288,192 @@ bool buffering_request_http_parser<Handlers,RHB>::buffering() const
 
 
 
+/*
+
+template< class BodyObserver >
+class connection_tmpl: 
+    public   std::enable_shared_from_this< connection_tmpl<BodyObserver> >, 
+    public  mxmz::buffering_request_http_parser< connection_tmpl<BodyObserver> > {
+
+    typedef mxmz::buffering_request_http_parser<connection_tmpl<BodyObserver>> base_t;
+
+    ip::tcp::socket     socket;
+    mxmz::ring_buffer   rb;
+    BodyObserver*       body_handler;
+
+    public:
+
+    auto      buffered_data ()  {
+            return rb.data() ;
+    }
+
+    connection_tmpl ( ip::tcp::socket&& s, size_t buffer_threshold, size_t buffer_size) :
+                base_t(buffer_threshold),
+                socket( move(s)), 
+                rb( buffer_size ),
+                body_handler(nullptr) {
+    }
+    
+
+
+    size_t handle_body_chunk( const char* p , size_t l ) {
+        return body_handler->handle_body_chunk(p,l);
+    }
+
+    void notify_body_end() {
+            body_handler->notify_body_end();
+    }
+    void bind( BodyObserver * p) {
+        body_handler = p;
+    }
+
+    
+    shared_ptr< BodyObserver> make_body_observer();
+
+    template<   typename ReadHandler >
+     void post(ReadHandler handler) {
+                socket.get_io_service().post(handler);
+     }
+
+    size_t counter = 0;
+
+    template<   typename ReadHandler >
+     void async_read(ReadHandler handler) {
+
+          
+          auto self( this->shared_from_this() );
+                     
+          auto processData = [this,self, handler]( boost::system::error_code ec, std::size_t bytes ) {
+                counter += bytes;
+                cerr << "<<<<<<<<<<<<<<<<<<<<<<<< connection socket.async_read_some bytes: " << bytes <<  " " << counter << endl;
+                rb.commit(bytes);
+                
+                auto toread = rb.data();
+                cerr << "connection::async_read_some parsing  " << buffer_size(toread) << endl;
+                size_t consumed = this->parse( buffer_cast<const char*>(toread), buffer_size(toread)  );
+                cerr << "connection::async_read_some parsed: " << consumed << " " << this->paused()  << " " <<  ec <<  " " << buffer_size(toread) << " " << this->buffering() << endl;
+                rb.consume(consumed);
+                if ( this->buffering() ) { // still something to flush
+                        ec = boost::system::error_code() ;
+                }
+                handler( ec );
+           };
+
+           if ( rb.readable() or this->buffering() ) {
+               cerr << "async_read: start: unparsed stuff" << endl;
+               socket.get_io_service().post([processData]() {
+                   processData( boost::system::error_code(), 0  );
+               });
+           } else {
+                auto towrite = rb.prepare();
+               cerr << "async_read: start: towrite " <<buffer_size(towrite) << endl;
+               socket.async_read_some( towrite, processData );
+           }
+         }
+
+
+        typedef std::unique_ptr<const http_request_header>      http_request_header_ptr;
+        typedef shared_ptr< BodyObserver >                      body_reader_ptr ;
+
+        std::unique_ptr< const http_request_header> request_ready;
+
+        void notify_header( std::unique_ptr< const http_request_header> h ) {
+            request_ready = move(h);
+        }    
+
+*/        
+
+template<   typename BodyObserver>
+template<   typename ReadHandler >
+void 
+connection_tmpl<BodyObserver>::async_read_request(ReadHandler handler) {
+        auto self( this->shared_from_this() );
+        async_read( [this, self, handler](boost::system::error_code ec ) {
+                    cerr << __FUNCTION__ << endl;
+            if ( ec ) {
+                    handler( ec, http_request_header_ptr(), body_reader_ptr() );
+            } else if ( request_ready ) {
+                    handler( boost::system::error_code(), move(request_ready), move( make_body_observer() ) );
+            } else {
+                async_read_request(handler);
+            }
+        } );
+}
+
+
+template<   typename BodyObserver>
+template<   typename ReadHandler >
+void 
+connection_tmpl<BodyObserver>::async_read(ReadHandler handler) {
+        auto self( this->shared_from_this() );
+                    
+        auto processData = [this,self, handler]( boost::system::error_code ec, std::size_t bytes ) {
+            bytes_transferred += bytes;
+            cerr << "<<<<<<<<<<<<<<<<<<<<<<<< connection socket.async_read_some bytes: " << bytes <<  " " << bytes_transferred << endl;
+            rb.commit(bytes);
+            
+            auto toread = rb.data();
+            cerr << "connection::async_read_some parsing  " << buffer_size(toread) << endl;
+            size_t consumed = this->parse( buffer_cast<const char*>(toread), buffer_size(toread)  );
+            cerr << "connection::async_read_some parsed: " << consumed << " " << this->paused()  << " " <<  ec <<  " " << buffer_size(toread) << " " << this->buffering() << endl;
+            rb.consume(consumed);
+            if ( this->buffering() ) { // still something to flush
+                    ec = boost::system::error_code() ;
+            }
+            handler( ec );
+        };
+
+        if ( rb.readable() or this->buffering() ) {
+            cerr << "async_read: start: unparsed stuff" << endl;
+            socket.get_io_service().post([processData]() {
+                processData( boost::system::error_code(), 0  );
+            });
+        } else {
+            auto towrite = rb.prepare();
+            cerr << "async_read: start: towrite " <<buffer_size(towrite) << endl;
+            socket.async_read_some( towrite, processData );
+        }
+}
+
+
+
+template<  class BodyObserver >
+shared_ptr< BodyObserver> 
+connection_tmpl<BodyObserver>::make_body_observer() {
+    return make_shared<BodyObserver>(this->shared_from_this() );
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
 
 
