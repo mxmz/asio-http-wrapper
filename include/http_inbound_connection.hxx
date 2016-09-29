@@ -54,7 +54,7 @@ class buffering_request_http_parser  {
         buffering_request_http_parser( Handlers*, size_t buffer_threshold );
         buffering_request_http_parser( size_t buffer_threshold );
         buffering_request_http_parser() = delete;
-        buffering_request_http_parser( const buffering_request_http_parser&& ) = delete;
+        buffering_request_http_parser( const buffering_request_http_parser& ) = delete;
 
         bool paused() const ;
         bool good()   const ;
