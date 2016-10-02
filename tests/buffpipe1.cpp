@@ -19,6 +19,7 @@ using namespace std;
 using namespace boost;
 
 #include "stream_pipe.hxx"
+#include "test.h"
 
 typedef mxmz::stream_pipe_tmpl< asio::ip::tcp::socket,asio::posix::stream_descriptor> tcp_socket_pipe;
 
@@ -46,8 +47,8 @@ int main()
         auto pipe = std::make_shared<tcp_socket_pipe>(src, dst, 4567);
 
         pipe->run( [pipe](const system::error_code& read_ec, const system::error_code& write_ec) {
-                    cerr << read_ec.message() << endl;
-                    cerr << write_ec.message() << endl;
+                    CERR << read_ec.message() << endl;
+                    CERR << write_ec.message() << endl;
 
                   }  );
         ios.run();

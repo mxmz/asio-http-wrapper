@@ -12,7 +12,7 @@
 #include <boost/asio/streambuf.hpp>
 
 #include "ring_buffer.hxx"
-
+#include "test.h"
 
 int debug_count_read = 0;
 int debug_count_write = 0;
@@ -56,7 +56,7 @@ public:
 private:
     void finish()
     {
-        cerr << "finished " << debug_count_read << " " << debug_count_write << endl;
+        CERR << "finished " << debug_count_read << " " << debug_count_write << endl;
         if ( not finished_ and not writing_ and not reading_ )
         {
             finished_ = true;
@@ -67,24 +67,24 @@ private:
 
     void activate()
     {
-        cerr << "writable: " << sbuf_.writable() << "  - readable: " << sbuf_.readable() << endl;
-        cerr << "full: " << sbuf_.full() << " - empty: " << sbuf_.empty() << endl;
-        cerr << "reading: " << reading_ << " - writing: " << writing_ << endl;
-        cerr << "read_ec_: " << read_ec_ << " - write_ec_: " << write_ec_ << endl;
+        CERR << "writable: " << sbuf_.writable() << "  - readable: " << sbuf_.readable() << endl;
+        CERR << "full: " << sbuf_.full() << " - empty: " << sbuf_.empty() << endl;
+        CERR << "reading: " << reading_ << " - writing: " << writing_ << endl;
+        CERR << "read_ec_: " << read_ec_ << " - write_ec_: " << write_ec_ << endl;
 
         if( not sbuf_.full() and not reading_ and not finished_ and not read_ec_ )
         {
             auto _this = this->shared_from_this();
             auto handler = strand_.wrap([this,_this ](const boost::system::error_code& ec, std::size_t bytes_transferred)
             {
-                cerr << "read handler" << endl;
+                CERR << "read handler" << endl;
                 if ( not ec )
                 {
                    // auto bufs = sbuf_.prepare();
                    // auto rv = src_stream_.read_some(bufs, read_ec_ );
-                   // cerr << "**** " << buffer_size(bufs) <<  " " << read_ec_  << endl;
+                   // CERR << "**** " << buffer_size(bufs) <<  " " << read_ec_  << endl;
                    // assert( buffer_size(bufs) > 0 );
-                   //  cerr << "read: " << rv << " is_writing_: " << writing_ << endl;
+                   //  CERR << "read: " << rv << " is_writing_: " << writing_ << endl;
                    // sbuf_.commit(rv);
                     sbuf_.commit(bytes_transferred);
                     debug_count_read += bytes_transferred;
@@ -118,13 +118,13 @@ private:
             auto _this = this->shared_from_this();
             auto handler = strand_.wrap([this,_this ](const boost::system::error_code& ec, std::size_t bytes_transferred)
             {
-                cerr << "write handler" << endl;
+                CERR << "write handler" << endl;
                 if ( not ec )
                 {
                     //auto bufs = sbuf_.data();
                     //assert( buffer_size(bufs) > 0 );
                     //auto rv = dst_stream_.write_some( bufs, write_ec_ );
-                    //cerr << "write " << rv << " is_reading_: " << reading_ << endl;
+                    //CERR << "write " << rv << " is_reading_: " << reading_ << endl;
                     sbuf_.consume(bytes_transferred);
                     debug_count_write += bytes_transferred;
                     writing_ = false;
