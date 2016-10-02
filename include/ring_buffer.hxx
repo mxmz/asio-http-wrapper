@@ -82,8 +82,8 @@ class ring_buffer
         mutable_buffers_1 prepare() const
         {
 
-           //cerr << "prepare: a_ " <<  (a_ - beg_) << endl;
-           //cerr <<  "prepare: b_ " <<  ( b_ - beg_ )  << endl;
+           //CERR << "prepare: a_ " <<  (a_ - beg_) << endl;
+           //CERR <<  "prepare: b_ " <<  ( b_ - beg_ )  << endl;
 
                 if ( b_ < a_ ) {
                        return mutable_buffers_1( b_, a_ - b_ - 1 );
@@ -97,8 +97,8 @@ class ring_buffer
 
         const_buffers_1 data() const
         {
-            //cerr << "data: a_ " <<  (a_ - beg_) << endl;
-            //cerr <<  "data: b_ " <<  ( b_ - beg_ )  << endl;
+            //CERR << "data: a_ " <<  (a_ - beg_) << endl;
+            //CERR <<  "data: b_ " <<  ( b_ - beg_ )  << endl;
 
             if ( a_ <= b_ ) {
                 return const_buffers_1( a_, b_ - a_);
