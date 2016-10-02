@@ -10,6 +10,8 @@
 #include <thread>
 #include <future>
 
+#include "test.hxx"
+
 #include "http_inbound_connection.hxx"
 #include "ring_buffer.hxx"
 
@@ -30,10 +32,11 @@ using std::min;
 using std::shared_ptr;
 using std::function;
 
-#include "test.hxx"
+
 
 
 using namespace mxmz;
+using namespace mxmztest;
 
 class parser  {
     typedef mxmz::buffering_request_http_parser<parser> request_parser_t;
@@ -207,12 +210,13 @@ int _ = init();
 
 int srv_port = 60000 + (rand()%5000);
 
-void test2() {
+auto test_server(io_service& ios, string s1) {
+
     size_t bodybuffer_size = rand() % 2048 + 10;
     size_t readbuffer_size = rand() % 2048 + 10;
     size_t testreader_readbuffer_size = rand() % 2048 + 10;
 
-    io_service  ios;
+    
        
     ip::tcp::resolver resolver(ios);
     ip::tcp::endpoint endpoint( ip::address::from_string("127.0.0.1"), srv_port);
@@ -263,30 +267,6 @@ void test2() {
     std::promise<bool>   srv_ready;
     auto srv_ready_future = srv_ready.get_future();
 
-
-    auto b1 = make_random_string( 1042 + rand() % 10042, 'a', 'z' +1  );
-
-    //auto b1 = make_random_string( 42 + rand() % 42, 'a', 'z' );
-    
-
-    string bodylen = boost::lexical_cast<string>( b1.size() );
-
-    auto rand_head_name1 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 1 );
-    auto rand_head_value1 = make_random_string(1 + rand() % 1042, 'a', 126  );
-
-    auto rand_head_name2 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 26 );
-    auto rand_head_value2 = make_random_string(1 + rand() % 1042, 'a', 126  );
-
-    auto garbage = make_random_string(1 + rand() % 1042, 'A', 'Z'+ 1 );
-
-    const string s1 = "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
-                      "Accept: */*\r\n"
-                      + rand_head_name1 + ": " + rand_head_value1 + "\r\n"
-                      "Transfer-Encoding: identity\r\n"
-                      "Content-Length: " + bodylen + "\r\n"
-                      + rand_head_name2 + ": " + rand_head_value2 + "\r\n"  
-                      "\r\n"
-                      + b1 + garbage;
         
 
     thread t( [s1,f = move(srv_ready_future), f2 = move(srv_finished_future)]() {
@@ -320,28 +300,82 @@ void test2() {
     ios.run();
     t.join();
 
-        cerr << tr->body.size() << endl;
-        cerr << b1.size() << endl;
-        cerr << bodybuffer_size << endl;
-        cerr << readbuffer_size << endl;
-        assert( tr->body ==  b1 );
-        assert( tr->h );
-        assert( tr->h->method == "POST" );
-        assert( tr->h->url == "/post_identity_body_world?q=search#hey" );
-        assert( (*tr->h)[rand_head_name1] == rand_head_value1 );
-        assert( (*tr->h)[rand_head_name2] == rand_head_value2 );
-        
-        auto buffered = tr->s->connection()->buffered_data();
-        std::string buffered_str( buffer_cast<const char*>(buffered), buffer_size(buffered) );
+    cerr << bodybuffer_size << endl;
+    cerr << readbuffer_size << endl;
 
-        cerr << buffered_str << endl;
-        cerr << garbage << endl;
-
-        cerr << garbage.find(buffered_str) << endl;
-        assert( garbage.find(buffered_str) == 0 ); // extra garbage must appear at the beginning of buffered data, if any 
-        
-
+        return tr;
 } 
+
+void test2() {
+    auto b1 = make_random_string( 1042 + rand() % 10042, 'a', 'z' +1  );
+    string bodylen = boost::lexical_cast<string>( b1.size() );
+    auto rand_head_name1 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 1 );
+    auto rand_head_value1 = make_random_string(1 + rand() % 1042, 'a', 126  );
+    auto rand_head_name2 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 26 );
+    auto rand_head_value2 = make_random_string(1 + rand() % 1042, 'a', 126  );
+    auto garbage = make_random_string(1 + rand() % 1042, 'A', 'Z'+ 1 );
+    
+    const string s1 = "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
+                      "Accept: */*\r\n"
+                      + rand_head_name1 + ": " + rand_head_value1 + "\r\n"
+                      "Transfer-Encoding: identity\r\n"
+                      "Content-Length: " + bodylen + "\r\n"
+                      + rand_head_name2 + ": " + rand_head_value2 + "\r\n"  
+                      "\r\n"
+                      + b1 + garbage;
+    io_service ios;
+    auto tr = test_server(ios,s1);
+    cerr << tr->body.size() << endl;
+    cerr << b1.size() << endl;
+    assert( tr->body ==  b1 );
+    assert( tr->h );
+    assert( tr->h->method == "POST" );
+    assert( tr->h->url == "/post_identity_body_world?q=search#hey" );
+    assert( (*tr->h)[rand_head_name1] == rand_head_value1 );
+    assert( (*tr->h)[rand_head_name2] == rand_head_value2 );
+    
+    auto buffered = tr->s->connection()->buffered_data();
+    std::string buffered_str( buffer_cast<const char*>(buffered), buffer_size(buffered) );
+
+    cerr << buffered_str << endl;
+    cerr << garbage << endl;
+
+    cerr << garbage.find(buffered_str) << endl;
+    assert( garbage.find(buffered_str) == 0 ); // extra garbage must appear at the beginning of buffered data, if any 
+    
+
+}
+
+void test3() {
+    auto b1 = make_random_string( 1042 + rand() % 10042, 'a', 'z' +1  );
+    auto rand_head_name1 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 1 );
+    auto rand_head_value1 = make_random_string(1 + rand() % 1042, 'a', 126  );
+    auto rand_head_name2 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 26 );
+    auto rand_head_value2 = make_random_string(1 + rand() % 1042, 'a', 126  );
+    
+    const string s1 = "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
+                      "Accept: */*\r\n"
+                      + rand_head_name1 + ": " + rand_head_value1 + "\r\n"
+                      "Transfer-Encoding: identity\r\n"
+                      + rand_head_name2 + ": " + rand_head_value2 + "\r\n"  
+                      "\r\n"
+                      + b1;
+    io_service ios;
+    auto tr = test_server(ios,s1);
+    cerr << tr->body.size() << endl;
+    cerr << b1.size() << endl;
+    assert( tr->body ==  b1 );
+    assert( tr->h );
+    assert( tr->h->method == "POST" );
+    assert( tr->h->url == "/post_identity_body_world?q=search#hey" );
+    assert( (*tr->h)[rand_head_name1] == rand_head_value1 );
+    assert( (*tr->h)[rand_head_name2] == rand_head_value2 );
+    
+    auto buffered = tr->s->connection()->buffered_data();
+    std::string buffered_str( buffer_cast<const char*>(buffered), buffer_size(buffered) );
+
+
+}
 
 
 

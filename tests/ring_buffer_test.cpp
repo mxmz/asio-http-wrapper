@@ -15,7 +15,7 @@ using namespace std;
 #include "ring_buffer.hxx"
 
 #include "test.hxx"
-
+using namespace mxmztest;
 
 
 
@@ -31,6 +31,7 @@ int main()
         source_base_size += ( 100 * (rand() % (source_base_size/100))) ;
     }
 }
+
 
 void random_test(size_t source_base_size ) {
    

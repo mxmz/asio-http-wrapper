@@ -14,6 +14,7 @@
 using namespace std;
 
 #include "test.hxx"
+using namespace mxmztest;
 
 class handlers_interface {
 public:
@@ -356,7 +357,8 @@ bool test_readparse_pausing( const string&s, my_parser_pausing& parser ) {
     assert( parsed == s.size() );
     return did_pause;
 }
- 
+using namespace mxmztest;
+
 void test6()
 {      
     my_parser_pausing  parser(my_parser_pausing::Request);

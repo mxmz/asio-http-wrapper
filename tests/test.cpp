@@ -4,10 +4,11 @@
 #include <stdlib.h>
 
 #include "boost/lexical_cast.hpp"
+namespace mxmztest {
 
 template< typename Type >
 Type getenv(const char* name, Type dflt = Type() ) {
-    const char * val = getenv(name);
+    const char * val = ::getenv(name);
     if ( val == nullptr or *val == '\0') {
         return dflt;
     } else {
@@ -17,8 +18,6 @@ Type getenv(const char* name, Type dflt = Type() ) {
 
 const bool verbose = getenv<bool>("VERBOSE");
 const int  max_time = getenv<int>("MAX_TIME", 1 );
-
-#define cerr if(verbose) cerr 
 
 std::string make_random_string(int c, int from,  int to ) {
     std::string s;
@@ -55,4 +54,4 @@ void run(const char* name, void(* func)(), int count )
     cout << name << " ok " << i  << endl;
 }
 
-#define RUN(f,count) run( #f, &f, count )
+}

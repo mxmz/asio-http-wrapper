@@ -216,7 +216,20 @@ public:
         
    bool buffering() const {
        return buffer_size(state.body_buffered.data()) > 0;
-   } 
+   }
+   inline size_t parse(const char* buffer, size_t len)
+    {
+        if ( buffering() ) {
+            flush();
+            return 0;
+        }
+        if ( len ) {
+            this->unpause();
+            return this->base_t::parse(buffer, len);
+        } else {
+            return 0;
+        }
+    } 
     
 };
          
@@ -268,16 +281,7 @@ auto buffering_request_http_parser<Handlers,RHB>::flush() -> flush_info_t
 template <class Handlers, class RHB>
 size_t buffering_request_http_parser<Handlers,RHB>::parse(const char* buffer, size_t len)
 {
-    if ( i->buffering() ) {
-        i->flush();
-        return 0;
-    }
-    if ( len ) {
-        i->unpause();
-        return i->parse(buffer, len);
-    } else {
-        return 0;
-    }
+    return i->parse(buffer, len);
 }
 
 template <class Handlers, class RHB>

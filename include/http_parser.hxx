@@ -2,7 +2,7 @@
 #define http_parser_29834729834729834729384729482741762537165371635176235173651723615723
 
 #include <memory>
-
+#include "pimpl.h"
 
 namespace mxmz {
 
@@ -23,7 +23,7 @@ class http_parser_state;
 template <class Handlers>
 class http_parser_base {
     class detail;
-    std::unique_ptr<detail> i;
+    pimpl<detail,330,8> i;
 
 public:
     enum mode_t { Request,

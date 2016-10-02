@@ -28,6 +28,7 @@ using namespace std;
 using namespace boost;
 
 #include "test.hxx"
+using namespace mxmztest;
 
 
 typedef mxmz::stream_pipe_tmpl< asio::ip::tcp::socket> tcp_socket_pipe;
