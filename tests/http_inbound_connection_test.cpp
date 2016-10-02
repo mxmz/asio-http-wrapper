@@ -312,7 +312,7 @@ auto test_server(io_service& ios, string s1) {
 void test2() {
     auto b1 = make_random_string( 1042 + rand() % 10042, 'a', 'z' +1  );
     string bodylen = boost::lexical_cast<string>( b1.size() );
-    auto rand_head_name1 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 1 );
+    auto rand_head_name1 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 26 );
     auto rand_head_value1 = make_random_string(1 + rand() % 1042, 'a', 126  );
     auto rand_head_name2 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 26 );
     auto rand_head_value2 = make_random_string(1 + rand() % 1042, 'a', 126  );
@@ -355,7 +355,7 @@ string int2hex(int i) {
     return string(buffer);
 }
 
-string string2chunks( string s ) {
+string string2chunks( const string& s ) {
     string rv;
     const char* p = s.data();
     const char* end = p + s.size();
@@ -376,7 +376,7 @@ string string2chunks( string s ) {
 
 void test3() {
     auto s = make_random_string( 1042 + rand() % 10042, verbose ? 'a': 0, 'z' +1  );
-    auto rand_head_name1 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 1 );
+    auto rand_head_name1 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 26 );
     auto rand_head_value1 = make_random_string(1 + rand() % 1042, 'a', 126  );
     auto rand_head_name2 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 26 );
     auto rand_head_value2 = make_random_string(1 + rand() % 1042, 'a', 126  );
