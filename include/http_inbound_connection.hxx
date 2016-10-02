@@ -10,6 +10,7 @@
 #include <boost/asio/ip/tcp.hpp>
 #include "http_parser.hxx"
 #include "ring_buffer.hxx"
+#include "test.h"
 
 namespace mxmz {
 
@@ -79,9 +80,9 @@ class buffering_request_http_parser  {
                 conn->async_read_request( [conn]( boost::system::error_code ec, 
                                                      connection::http_request_header_ptr head,  
                                                      connection::body_reader_ptr body  ) {
-                    cerr << ec <<  endl;
-                        cerr << head->method << endl;
-                        cerr << head->url << endl;
+                    CERR << ec <<  endl;
+                        CERR << head->method << endl;
+                        CERR << head->url << endl;
 
                         body->async_read_some( ... 
                         // ....
@@ -192,15 +193,15 @@ class body_reader : public std::enable_shared_from_this< body_reader>  {
     bool                            eof = false;
 
     size_t handle_body_chunk( const char* p , size_t l ) {
-        cerr << "handle_body_chunk: got " << l <<  " avail " << buffer_size(current_buffer) << endl;
+        CERR << "handle_body_chunk: got " << l <<  " avail " << buffer_size(current_buffer) << endl;
         size_t used = buffer_copy( current_buffer, const_buffers_1(p,l) );
         current_buffer = current_buffer + used;
-        cerr << "handle_body_chunk: used " << used << endl;
+        CERR << "handle_body_chunk: used " << used << endl;
         return used;
     }
 
     void notify_body_end() {
-            cerr << __FUNCTION__ << endl;
+            CERR << __FUNCTION__ << endl;
             eof = true;
     }
 
@@ -208,7 +209,7 @@ class body_reader : public std::enable_shared_from_this< body_reader>  {
     void async_read_some(
         const boost::asio::mutable_buffer& buffer,
             ReadHandler handler) {
-                    cerr << "body_reader async_read_some eof  " << eof << endl;
+                    CERR << "body_reader async_read_some eof  " << eof << endl;
                     if ( eof ) {
                             cnn->post( [handler]() {
                                   handler(boost::asio::error::eof, 0);      
@@ -219,7 +220,7 @@ class body_reader : public std::enable_shared_from_this< body_reader>  {
                         auto self( this->shared_from_this() );
                         cnn->async_read( [this,self,origlen,handler](boost::system::error_code ec) {
                             size_t len = origlen - buffer_size(current_buffer);
-                            cerr << "body_reader async_read_some lambda  " << ec << endl;
+                            CERR << "body_reader async_read_some lambda  " << ec << endl;
                             if ( eof ) ec = boost::asio::error::eof;  
                             if ( ec ) {
                                 handler( ec,  len  );

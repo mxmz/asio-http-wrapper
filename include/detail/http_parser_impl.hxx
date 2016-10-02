@@ -139,15 +139,15 @@ struct http_parser_base<Handlers>::detail   {
     size_t parse(const char* buffer, size_t len)
     {
         http_parser* parser = state.parser;
-        //cerr << http_errno_name(http_errno(parser->http_errno)) << endl;
+        //CERR << http_errno_name(http_errno(parser->http_errno)) << endl;
         //http_parser_pause( parser, 0 );
         size_t rv = http_parser_execute(parser, &settings, buffer, len);
 #if 0        
-         cerr << parser->http_errno << endl;
-         cerr << http_errno_name(http_errno(parser->http_errno)) << endl;
-         cerr << http_errno_description(http_errno(parser->http_errno)) << endl;
-         cerr << " rv " << rv << " char " << int( buffer[rv] ) << endl;         
-         cerr << "." << endl;
+         CERR << parser->http_errno << endl;
+         CERR << http_errno_name(http_errno(parser->http_errno)) << endl;
+         CERR << http_errno_description(http_errno(parser->http_errno)) << endl;
+         CERR << " rv " << rv << " char " << int( buffer[rv] ) << endl;         
+         CERR << "." << endl;
 #endif         
         if ( HTTP_PARSER_ERRNO(parser) != HPE_PAUSED && HTTP_PARSER_ERRNO(parser) != HPE_OK ) {
             handlers->on_error(parser->http_errno,
@@ -194,16 +194,16 @@ struct http_parser_base<Handlers>::detail   {
         }
         
 
-        // cerr << __FUNCTION__ << ": ";
+        // CERR << __FUNCTION__ << ": ";
         // cerr.write(buf, len) << endl;
 
-        // cerr << p->http_major << endl;
-        // cerr << p->http_minor << endl;
-        // cerr << p->status_code << endl;
-        // cerr << p->method << endl;
-        // cerr << http_method_str((http_method)p->method) << endl;
-        // cerr << p->http_errno << endl;
-        // cerr << "." << endl;
+        // CERR << p->http_major << endl;
+        // CERR << p->http_minor << endl;
+        // CERR << p->status_code << endl;
+        // CERR << p->method << endl;
+        // CERR << http_method_str((http_method)p->method) << endl;
+        // CERR << p->http_errno << endl;
+        // CERR << "." << endl;
 
         return 0;
     }
@@ -217,14 +217,14 @@ struct http_parser_base<Handlers>::detail   {
             tuple_t t = self.state.move_ready();
             self.handlers->on_header_line( move( get<0>(t) ), move( get<1>(t) ) );
         }
-        // cerr << __FUNCTION__ << ": ";
+        // CERR << __FUNCTION__ << ": ";
         // cerr.write(buf, len) << endl;
         return 0;
     }
 
     static int body_cb(http_parser* p, const char* buf, size_t len)
     {
-        // cerr << __FUNCTION__ << ": ";
+        // CERR << __FUNCTION__ << ": ";
         // cerr.write(buf, len) << endl;
 
         get_self(p).handlers->on_body(buf, len);
@@ -234,17 +234,17 @@ struct http_parser_base<Handlers>::detail   {
 
     static int message_begin_cb(http_parser* p)
     {
-       // cerr << __FUNCTION__ << endl;
+       // CERR << __FUNCTION__ << endl;
         get_self(p).handlers->on_message_begin();
-        // cerr << p->http_errno << endl;
-        // cerr << "." << endl;
-        // cerr << p->http_major << endl;
-        // cerr << p->http_minor << endl;
-        // cerr << p->status_code << endl;
-        // cerr << p->method << endl;
-        // cerr << http_method_str((http_method)p->method) << endl;
-        // cerr << p->http_errno << endl;
-        // cerr << "." << endl;
+        // CERR << p->http_errno << endl;
+        // CERR << "." << endl;
+        // CERR << p->http_major << endl;
+        // CERR << p->http_minor << endl;
+        // CERR << p->status_code << endl;
+        // CERR << p->method << endl;
+        // CERR << http_method_str((http_method)p->method) << endl;
+        // CERR << p->http_errno << endl;
+        // CERR << "." << endl;
 
         return 0;
     }
@@ -264,27 +264,27 @@ struct http_parser_base<Handlers>::detail   {
             self.handlers->on_response_headers_complete( p->status_code, move(response_status) );
         }
         
-        //cerr << __FUNCTION__ << endl;
-        //cerr << "major  " << p->http_major << endl;
-        //cerr << "minor  " << p->http_minor << endl;
-        //cerr << "status " << p->status_code << endl;
-        //cerr << "method " << p->method << endl;
-        //cerr << "method " << http_method_str((http_method)p->method) << endl;
-        //cerr << "errno  " << p->http_errno << endl;
-        //cerr << "." << endl;
+        //CERR << __FUNCTION__ << endl;
+        //CERR << "major  " << p->http_major << endl;
+        //CERR << "minor  " << p->http_minor << endl;
+        //CERR << "status " << p->status_code << endl;
+        //CERR << "method " << p->method << endl;
+        //CERR << "method " << http_method_str((http_method)p->method) << endl;
+        //CERR << "errno  " << p->http_errno << endl;
+        //CERR << "." << endl;
         return 0;
     }
 
     static int message_complete_cb(http_parser* p)
     {
-        // cerr << __FUNCTION__ << endl;
+        // CERR << __FUNCTION__ << endl;
         get_self(p).handlers->on_message_complete();
         return 0;
     }
 
     static int response_status_cb(http_parser* p, const char* buf, size_t len)
     {
-        // cerr << __FUNCTION__ << ": ";
+        // CERR << __FUNCTION__ << ": ";
         // cerr.write(buf, len) << endl;
         get_self(p).state.response_status.append( buf, len );
         return 0;
@@ -292,7 +292,7 @@ struct http_parser_base<Handlers>::detail   {
 
     static int request_url_cb(http_parser* p, const char* buf, size_t len)
     {
-        // cerr << __FUNCTION__ << ": ";
+        // CERR << __FUNCTION__ << ": ";
         // cerr.write(buf, len) << endl;
         get_self(p).state.request_url.append( buf, len );
         return 0;

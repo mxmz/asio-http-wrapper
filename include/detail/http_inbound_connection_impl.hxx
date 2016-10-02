@@ -9,6 +9,7 @@
 #include "http_inbound_connection.hxx"
 #include <cassert>
 #include <cstring>
+#include "test.h"
 
 namespace mxmz {
 
@@ -141,11 +142,11 @@ public:
     }
 
     void on_header_line( std::string&& name, string&& value )  {
-        cerr << __FUNCTION__ << endl;
+        CERR << __FUNCTION__ << endl;
         state.hrh_builder.add_header( move(name), move(value) );
     }
     void  on_request_headers_complete( string&& method, string&& request_url ) {
-        cerr << __FUNCTION__ << endl;
+        CERR << __FUNCTION__ << endl;
         http_request_header_ptr h(  
             move(  state.hrh_builder
                 .set_method(move(method))
@@ -157,21 +158,21 @@ public:
 
     void on_error(int http_errno, const char* msg)
     {
-        cerr << "Error: " << http_errno << " " << msg << endl;
+        CERR << "Error: " << http_errno << " " << msg << endl;
         std::abort();
     }
     void on_message_complete()
     {
         this->pause();     
         state.complete = true;
-        cerr << __FUNCTION__ << endl;
+        CERR << __FUNCTION__ << endl;
         flush();
     }
 
     void on_message_begin()
     {     state.complete = false;
-//        cerr << "Message begin" << endl;
-        cerr << __FUNCTION__ << endl;
+//        CERR << "Message begin" << endl;
+        CERR << __FUNCTION__ << endl;
     }
     
 
@@ -181,11 +182,11 @@ public:
 
         
     void on_body( const char* p, size_t l) {
-                cerr << __FUNCTION__ << endl;
+                CERR << __FUNCTION__ << endl;
             flush();
             if ( state.body_buffered.empty() ) {
                 size_t consumed = handlers->handle_body_chunk( p, l );
-                cerr << "on_body: buffering " << l - consumed << endl;
+                CERR << "on_body: buffering " << l - consumed << endl;
                 state.body_buffered.append(p + consumed, l - consumed );
             } else {
                 state.body_buffered.append(p , l );
@@ -198,14 +199,14 @@ public:
     typedef std::pair<size_t,size_t>    flush_info_t;
 
    flush_info_t flush() {
-       cerr << "flush" << endl;
+       CERR << "flush" << endl;
        size_t flushed = 0;
         if ( not state.body_buffered.empty()  ) {
             auto data = state.body_buffered.data();
             flushed = handlers->handle_body_chunk( buffer_cast<const char*>(data), buffer_size(data) );
             state.body_buffered.consume(flushed);
         }
-        cerr << "flush " <<  buffer_size( state.body_buffered.data()) << " " << state.body_buffered.empty() << " " << state.complete<<   endl;
+        CERR << "flush " <<  buffer_size( state.body_buffered.data()) << " " << state.body_buffered.empty() << " " << state.complete<<   endl;
         if ( state.complete and state.body_buffered.empty() ) {
             handlers->notify_body_end();
             state.complete = false;
@@ -349,13 +350,13 @@ class connection_tmpl:
                      
           auto processData = [this,self, handler]( boost::system::error_code ec, std::size_t bytes ) {
                 counter += bytes;
-                cerr << "<<<<<<<<<<<<<<<<<<<<<<<< connection socket.async_read_some bytes: " << bytes <<  " " << counter << endl;
+                CERR << "<<<<<<<<<<<<<<<<<<<<<<<< connection socket.async_read_some bytes: " << bytes <<  " " << counter << endl;
                 rb.commit(bytes);
                 
                 auto toread = rb.data();
-                cerr << "connection::async_read_some parsing  " << buffer_size(toread) << endl;
+                CERR << "connection::async_read_some parsing  " << buffer_size(toread) << endl;
                 size_t consumed = this->parse( buffer_cast<const char*>(toread), buffer_size(toread)  );
-                cerr << "connection::async_read_some parsed: " << consumed << " " << this->paused()  << " " <<  ec <<  " " << buffer_size(toread) << " " << this->buffering() << endl;
+                CERR << "connection::async_read_some parsed: " << consumed << " " << this->paused()  << " " <<  ec <<  " " << buffer_size(toread) << " " << this->buffering() << endl;
                 rb.consume(consumed);
                 if ( this->buffering() ) { // still something to flush
                         ec = boost::system::error_code() ;
@@ -364,13 +365,13 @@ class connection_tmpl:
            };
 
            if ( rb.readable() or this->buffering() ) {
-               cerr << "async_read: start: unparsed stuff" << endl;
+               CERR << "async_read: start: unparsed stuff" << endl;
                socket.get_io_service().post([processData]() {
                    processData( boost::system::error_code(), 0  );
                });
            } else {
                 auto towrite = rb.prepare();
-               cerr << "async_read: start: towrite " <<buffer_size(towrite) << endl;
+               CERR << "async_read: start: towrite " <<buffer_size(towrite) << endl;
                socket.async_read_some( towrite, processData );
            }
          }
@@ -393,7 +394,7 @@ void
 connection_tmpl<BodyObserver>::async_read_request(ReadHandler handler) {
         auto self( this->shared_from_this() );
         async_read( [this, self, handler](boost::system::error_code ec ) {
-                    cerr << __FUNCTION__ << endl;
+                    CERR << __FUNCTION__ << endl;
             if ( ec ) {
                     handler( ec, http_request_header_ptr(), body_reader_ptr() );
             } else if ( request_ready ) {
@@ -413,13 +414,13 @@ connection_tmpl<BodyObserver>::async_read(ReadHandler handler) {
                     
         auto processData = [this,self, handler]( boost::system::error_code ec, std::size_t bytes ) {
             bytes_transferred += bytes;
-            cerr << "<<<<<<<<<<<<<<<<<<<<<<<< connection socket.async_read_some bytes: " << bytes <<  " " << bytes_transferred << endl;
+            CERR << "<<<<<<<<<<<<<<<<<<<<<<<< connection socket.async_read_some bytes: "<< ec  << " " << bytes <<  " " << bytes_transferred << endl;
             rb.commit(bytes);
             
             auto toread = rb.data();
-            cerr << "connection::async_read_some parsing  " << buffer_size(toread) << endl;
+            CERR << "connection::async_read_some parsing  " << buffer_size(toread) << endl;
             size_t consumed = this->parse( buffer_cast<const char*>(toread), buffer_size(toread)  );
-            cerr << "connection::async_read_some parsed: " << consumed << " " << this->paused()  << " " <<  ec <<  " " << buffer_size(toread) << " " << this->buffering() << endl;
+            CERR << "connection::async_read_some parsed: " << consumed << " " << this->paused()  << " " <<  ec <<  " " << buffer_size(toread) << " " << this->buffering() << endl;
             rb.consume(consumed);
             if ( this->buffering() ) { // still something to flush
                     ec = boost::system::error_code() ;
@@ -428,13 +429,13 @@ connection_tmpl<BodyObserver>::async_read(ReadHandler handler) {
         };
 
         if ( rb.readable() or this->buffering() ) {
-            cerr << "async_read: start: unparsed stuff" << endl;
+            CERR << "async_read: start: unparsed stuff" << endl;
             socket.get_io_service().post([processData]() {
                 processData( boost::system::error_code(), 0  );
             });
         } else {
             auto towrite = rb.prepare();
-            cerr << "async_read: start: towrite " <<buffer_size(towrite) << endl;
+            CERR << "async_read: start: towrite " <<buffer_size(towrite) << endl;
             socket.async_read_some( towrite, processData );
         }
 }

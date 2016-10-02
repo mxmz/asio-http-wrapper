@@ -38,37 +38,37 @@ struct base_handlers : public handlers_interface {
 
 
     void  on_body(const char* b, size_t l) {
-        cerr << "body data: " << l << " ";
-        cerr.write(b, l) << endl;
+        CERR << "body data: " << l << " ";
+        CERR.write(b, l) << endl;
         body.append(b,l);
     }
 
     void on_response_headers_complete( int code, const string& response_status ) {
-        cerr << "res" << endl;
+        CERR << "res" << endl;
         static_cast<Derived&>(*this).on_response_headers_complete(code,response_status, move(headers) );
     }
 
     void  on_request_headers_complete( const string& method, const string& request_url ) {
-        cerr << "req" << endl;
+        CERR << "req" << endl;
         static_cast<Derived&>(*this).on_request_headers_complete(method,request_url, move(headers) );
     };
 
     void on_error(int http_errno, const char* msg)
     {
-        cerr << "Error: " << http_errno << " " << msg << endl;
+        CERR << "Error: " << http_errno << " " << msg << endl;
         error = make_pair(http_errno,string(msg));
     }
     void on_message_complete()
     {
-        cerr << "Message complete" << endl;
+        CERR << "Message complete" << endl;
     }
     void on_message_begin()
     {
-        cerr << "Message begin" << endl;
+        CERR << "Message begin" << endl;
     }
     void on_header_line( const std::string& name, string&& value )
     {
-        cerr << name << "  = " << value << endl;
+        CERR << name << "  = " << value << endl;
         headers[name] = move(value);
     }
 };
@@ -76,7 +76,7 @@ struct base_handlers : public handlers_interface {
 template< class Map >
 void dump( const Map& m ) {
     for ( auto& e : m ) {
-        cerr << e.first << " : " << e.second << endl;
+        CERR << e.first << " : " << e.second << endl;
     }
 }
 
@@ -91,13 +91,13 @@ struct  my_handlers : public base_handlers<my_handlers> {
 
     using base_handlers<my_handlers>::on_response_headers_complete;
     void on_response_headers_complete( int _code, const string& _response_status, map<string,string>&& _headers ) {
-        cerr << "res" << endl;
+        CERR << "res" << endl;
         headers = move(_headers);
     }
 
     using base_handlers<my_handlers>::on_request_headers_complete;
     void  on_request_headers_complete( const string& _method, const string& _request_url, map<string,string>&& _headers ) {
-        cerr << "req" << endl;
+        CERR << "req" << endl;
         headers = move(_headers);
         method = _method;
         request_url = _request_url;
@@ -106,7 +106,7 @@ struct  my_handlers : public base_handlers<my_handlers> {
 
     void on_message_complete() override
     {
-        cerr << "Message complete (derived)" << endl;
+        CERR << "Message complete (derived)" << endl;
     }
 };
 
@@ -120,7 +120,7 @@ void readparse( const string&s, Parser& parser ) {
     while( p != end ) {
           long int len = size_t(bufsize); bufsize *= 1.266; bufsize += rand() % 10 ;
           len = min( len , (end-p) );
-          cerr << "readparse: len " << len << endl;
+          CERR << "readparse: len " << len << endl;
           parser.parse( p, len );
           p += len;
     }
@@ -293,14 +293,14 @@ struct  my_parser_pausing :   public base_handlers<my_parser_pausing>,
 
     using base_handlers<my_parser_pausing>::on_response_headers_complete;
     void on_response_headers_complete( int _code, const string& _response_status, map<string,string>&& _headers ) {
-        cerr << "res" << endl;
+        CERR << "res" << endl;
         headers = move(_headers);
     }
 
     using base_handlers<my_parser_pausing>::on_request_headers_complete;
     void  on_request_headers_complete( const string& _method, const string& _request_url, map<string,string>&& _headers ) {
-        cerr << __PRETTY_FUNCTION__ << endl;
-        cerr << "req" << endl;
+        CERR << __PRETTY_FUNCTION__ << endl;
+        CERR << "req" << endl;
         headers = move(_headers);
         method = _method;
         request_url = _request_url;
@@ -311,14 +311,14 @@ struct  my_parser_pausing :   public base_handlers<my_parser_pausing>,
 
     void on_message_complete() override
     {
-        cerr << "Message complete (derived)" << endl;
+        CERR << "Message complete (derived)" << endl;
     }
     void on_message_begin() {
-      cerr << __PRETTY_FUNCTION__ << endl;
+      CERR << __PRETTY_FUNCTION__ << endl;
       //pause();
     }
     void  on_body(const char* b, size_t l) {
-        cerr << __PRETTY_FUNCTION__ << " " << l << endl;
+        CERR << __PRETTY_FUNCTION__ << " " << l << endl;
         body.append(b,l);
         //pause();
        
@@ -339,9 +339,9 @@ bool test_readparse_pausing( const string&s, my_parser_pausing& parser ) {
     while( p != end ) {
           long int len = size_t(bufsize); bufsize *= 1.666;
           len = min( len , (end-p) );
-          cerr << "readparse: len " << len <<  " " << parser.paused() << endl;
+          CERR << "readparse: len " << len <<  " " << parser.paused() << endl;
           long int consumed = parser.parse( p, len );
-          cerr << "readparse: consumed " << consumed <<  " " << parser.paused() << endl;
+          CERR << "readparse: consumed " << consumed <<  " " << parser.paused() << endl;
           if ( consumed < len ) {
               assert ( parser.paused() );
               assert( parsed + consumed == eoh - 1 ) ;
@@ -353,7 +353,7 @@ bool test_readparse_pausing( const string&s, my_parser_pausing& parser ) {
           parsed += consumed;
           p += len;
     }
-    cerr << parsed << "   " << s.size() << endl;
+    CERR << parsed << "   " << s.size() << endl;
     assert( parsed == s.size() );
     return did_pause;
 }
@@ -401,6 +401,7 @@ int main() {
     RUN( test4 , 5000 );
     RUN( test5 , 5000 );
     RUN( test6 , 5000 );
+    //cout << mxmztest::verbose << endl;
 }
 
 #include "detail/http_parser_impl.hxx"

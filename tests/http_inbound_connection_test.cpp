@@ -59,12 +59,12 @@ class parser  {
     bool    finished = false;
 
     size_t handle_body_chunk( const char* p , size_t l ) {
-        cerr << "handle_body: l " << l << endl;
+        CERR << "handle_body: l " << l << endl;
         if ( l == 0 ) return 0;
         size_t rl = rand() % (l+1)  ;
         body.append( p, rl );
-        cerr << "handle_body: rl " << rl << endl;
-          cerr << "handle_body: body " << body.size() << endl;
+        CERR << "handle_body: rl " << rl << endl;
+          CERR << "handle_body: body " << body.size() << endl;
         return rl; 
     }
 
@@ -118,13 +118,13 @@ void test1() {
     while( p != end ) {
           long int len = size_t( bufsize + 1 ); bufsize *= 1 + float(rand()%10 - 2 )/10;
           len = min( len , (end-p) );
-          cerr << "paused " << prs.paused() << endl;
+          CERR << "paused " << prs.paused() << endl;
           long int consumed = prs.parse( p, len );
-          cerr << "len " << len << " consumed " << consumed << endl;
+          CERR << "len " << len << " consumed " << consumed << endl;
           parsed += consumed;
           p += consumed;
           if ( prs.paused() ) {
-                cerr << "paused" << endl;
+                CERR << "paused" << endl;
                     assert( parsed == eoh - 1 );
                     assert( prs.paused() ) ;
                     assert( prs.header );
@@ -141,16 +141,16 @@ void test1() {
      while( p != end ) {
           long int len = size_t( bufsize + 1 ); bufsize *= 1 + float(rand()%10 - 4 )/10;
           len = min( len , (end-p) );
-          cerr << "paused " << prs.paused() << endl;
+          CERR << "paused " << prs.paused() << endl;
           long int consumed = prs.parse( p, len );
-          cerr << "len " << len << " consumed " << consumed <<  " paused " << prs.paused() << endl;
+          CERR << "len " << len << " consumed " << consumed <<  " paused " << prs.paused() << endl;
     
           p += consumed;
      }
-     cerr << "flushing" << endl;
+     CERR << "flushing" << endl;
      while ( not prs.finished ) {   prs.flush();  } ;
-     cerr << b1.size() << endl;
-     cerr << prs.body.size() << endl;
+     CERR << b1.size() << endl;
+     CERR << prs.body.size() << endl;
 
      assert( prs.body == b1 );
 
@@ -183,15 +183,15 @@ struct test_reader : std::enable_shared_from_this<test_reader> {
     }     
 
     void start() {
-        cerr << "test_reader: start " << endl;
+        CERR << "test_reader: start " << endl;
         auto self( this->shared_from_this() );
         boost::asio::mutable_buffers_1 buff(rb.prepare() );
         s->async_read_some( buff, [buff,this,self](boost::system::error_code ec, size_t l)  {
-                cerr << "test_reader: " << l <<  " " << ec << endl;
+                CERR << "test_reader: " << l <<  " " << ec << endl;
                 body.append( buffer_cast<const char*>(buff), l );
-                cerr.write( buffer_cast<const char*>(buff), l ) << endl;
+                CERR.write( buffer_cast<const char*>(buff), l ) << endl;
                 if ( ec ) {
-                        cerr << "test_reader: " << ec << endl;
+                        CERR << "test_reader: " << ec << endl;
                         finished.set_value(true);
                 } else {
                        start();
@@ -247,15 +247,15 @@ auto test_server(io_service& ios, string s1) {
         {
             if (not ec)
             {
-                cerr << "new connnection" << endl;
+                CERR << "new connnection" << endl;
                
                 auto conn = make_shared<conn_t>( move(socket), bodybuffer_size, readbuffer_size ) ;
                 conn->async_read_request( [tr,conn]( boost::system::error_code ec, 
                                                      connection::http_request_header_ptr h,  
                                                      connection::body_reader_ptr br  ) {
-                    cerr << ec <<  endl;
-                        cerr << h->method << endl;
-                        cerr << h->url << endl;
+                    CERR << ec <<  endl;
+                        CERR << h->method << endl;
+                        CERR << h->url << endl;
                         tr->s = br;
                         tr->h = move(h);
                         tr->start();
@@ -285,12 +285,14 @@ auto test_server(io_service& ios, string s1) {
             boost::system::error_code ec;
             auto rc = conn.write_some( const_buffers_1(p, len), ec );
             p += rc;
-            cerr << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> t written " << rc << "  " << ec << " remain " << (end-p) <<  endl;
+            CERR << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> t written " << rc << "  " << ec << " remain " << (end-p) <<  endl;
             std::this_thread::sleep_for( chrono::microseconds(( rand() % 100 ) / 96 ));
 
         }
         //std::this_thread::sleep_for( chrono::seconds( 1 ));
+        CERR << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> t wait future" << endl;
         f2.wait_for(chrono::seconds(10));
+        CERR << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> t finished" << endl;
     });
    
 
@@ -300,8 +302,8 @@ auto test_server(io_service& ios, string s1) {
     ios.run();
     t.join();
 
-    cerr << bodybuffer_size << endl;
-    cerr << readbuffer_size << endl;
+    CERR << bodybuffer_size << endl;
+    CERR << readbuffer_size << endl;
 
         return tr;
 } 
@@ -325,8 +327,8 @@ void test2() {
                       + b1 + garbage;
     io_service ios;
     auto tr = test_server(ios,s1);
-    cerr << tr->body.size() << endl;
-    cerr << b1.size() << endl;
+    CERR << tr->body.size() << endl;
+    CERR << b1.size() << endl;
     assert( tr->body ==  b1 );
     assert( tr->h );
     assert( tr->h->method == "POST" );
@@ -337,33 +339,44 @@ void test2() {
     auto buffered = tr->s->connection()->buffered_data();
     std::string buffered_str( buffer_cast<const char*>(buffered), buffer_size(buffered) );
 
-    cerr << buffered_str << endl;
-    cerr << garbage << endl;
+    CERR << buffered_str << endl;
+    CERR << garbage << endl;
 
-    cerr << garbage.find(buffered_str) << endl;
+    CERR << garbage.find(buffered_str) << endl;
     assert( garbage.find(buffered_str) == 0 ); // extra garbage must appear at the beginning of buffered data, if any 
     
 
 }
 
+
 void test3() {
-    auto b1 = make_random_string( 1042 + rand() % 10042, 'a', 'z' +1  );
+    //auto b1 = make_random_string( 1042 + rand() % 10042, 'a', 'z' +1  );
     auto rand_head_name1 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 1 );
     auto rand_head_value1 = make_random_string(1 + rand() % 1042, 'a', 126  );
     auto rand_head_name2 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 26 );
     auto rand_head_value2 = make_random_string(1 + rand() % 1042, 'a', 126  );
+    //string hexlen = boost::lexical_cast<string>( b1.size() );
+
+    string hexlen = "F";
+    auto b1 = make_random_string( 16, 'a', 'z' +1  );
+
     
     const string s1 = "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
                       "Accept: */*\r\n"
                       + rand_head_name1 + ": " + rand_head_value1 + "\r\n"
-                      "Transfer-Encoding: identity\r\n"
+                      "Transfer-Encoding: chunked\r\n"
                       + rand_head_name2 + ": " + rand_head_value2 + "\r\n"  
                       "\r\n"
-                      + b1;
+                      + hexlen + "\r\n"  
+                      + b1
+                      + "\r\n"
+                      + "ZZZZZ";
     io_service ios;
+    CERR << b1.size() << endl;
     auto tr = test_server(ios,s1);
-    cerr << tr->body.size() << endl;
-    cerr << b1.size() << endl;
+    CERR << tr->body.size() << endl;
+    
+    
     assert( tr->body ==  b1 );
     assert( tr->h );
     assert( tr->h->method == "POST" );
@@ -384,6 +397,7 @@ int main() {
 
     RUN( test1, verbose ? 10: 1000 );
     RUN( test2, verbose ? 10: 3000 );
+    //RUN( test3, verbose ? 10: 3000 ); // TODO: chunked
 }
 
 

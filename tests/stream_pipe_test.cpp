@@ -73,12 +73,12 @@ void test1()
                 while( p != end ) {
                     size_t len = min( long(1 + rand() % 512)  , (end-p) );
                     auto rc = sock.write_some( const_buffers_1(p, len) );
-                    cerr << "t1 written " << rc << endl;
+                    CERR << "t1 written " << rc << endl;
                     p += rc;
                   //  std::this_thread::sleep_for( chrono::microseconds(( rand() % 10 ) / 9 ));
                 }
              } 
-             cerr << "t1 finished" << endl;      
+             CERR << "t1 finished" << endl;      
          });
          std::thread t2( [&copy,&dst_ready]{
              using namespace boost::asio;
@@ -96,13 +96,13 @@ void test1()
                  while( true ) {
                      size_t len = 1 + rand() % 1000 ;
                      auto rv = sock.read_some( mutable_buffers_1( buffer, len  ) , ec );
-                     cerr << "t2 read " << rv << endl;
+                     CERR << "t2 read " << rv << endl;
                      if ( ec ) break ;
                      copy.append( buffer, rv );
                      //std::this_thread::sleep_for( chrono::microseconds(( rand() % 10 ) / 9 ));
                  }
              }       
-             cerr << "t2 finished" << endl;
+             CERR << "t2 finished" << endl;
          });
    
          src_ready_future.wait();
@@ -117,10 +117,10 @@ void test1()
         auto pipe =  mxmz::make_stream_pipe(*src, dst, 4567);
 
         pipe->run( [pipe,src,&dst,&pipe_finished](const system::error_code& read_ec, const system::error_code& write_ec) {
-                    cerr << read_ec.message() << endl;
-                    cerr << write_ec.message() << endl;
+                    CERR << read_ec.message() << endl;
+                    CERR << write_ec.message() << endl;
                     dst.close();
-                    cerr << std::this_thread::get_id() << endl;
+                    CERR << std::this_thread::get_id() << endl;
                     pipe_finished.set_value(true);
                   }  );
                   
@@ -143,11 +143,10 @@ void test1()
         for( thread& t : iosrunners) {
             t.join();
         }
-        cerr << source.size() << endl;
+        CERR << source.size() << endl;
         assert( source == copy );
         //cout << "#" << std::flush;        
 }
-
 
 
 int main() {

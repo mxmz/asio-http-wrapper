@@ -11,7 +11,7 @@ void pimpl<T,Size,Align>::check()
   static_assert( (sizeof(T) <= Size) , "impl<> Size must be changed/1");
   static_assert( (Size <= sizeof(T) * 1.1), "impl<> Size must be changed/2");
   static_assert(Align == alignof(T), "impl<> Align must be changed");
-  //cerr << sizeof(T) << endl; abort();
+  //CERR << sizeof(T) << endl; abort();
 }
 
 template< class T, int Size, int Align >

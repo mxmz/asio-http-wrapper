@@ -1,8 +1,13 @@
+#ifndef htest_hxx_30948503985039458309458309458039485039485039583234987
+#define htest_hxx_30948503985039458309458309458039485039485039583234987
+
 #include <iostream>
 #include <chrono>
 #include <stdlib.h>
 
 #include "boost/lexical_cast.hpp"
+
+#include "test.h"
 
 namespace mxmztest {
 
@@ -11,16 +16,10 @@ using std::cout;
 using std::endl;
 
 
-extern const bool verbose;
-extern const int  max_time;
-
-#define cerr if(mxmztest::verbose) cerr 
 
 std::string make_random_string(int c, int from,  int to );
-    
 
 std::string make_random_string(int c);
-    
 
 void run(const char* name, void(* func)(), int count );
 
@@ -28,3 +27,5 @@ void run(const char* name, void(* func)(), int count );
 
 
 #define RUN(f,count) mxmztest::run( #f, &f, count )
+
+#endif // !htest_hxx_30948503985039458309458309458039485039485039583234987
