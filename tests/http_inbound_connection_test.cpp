@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <iostream>
 #include <chrono>
 #include <queue>
@@ -286,7 +287,7 @@ auto test_server(io_service& ios, string s1) {
             auto rc = conn.write_some( const_buffers_1(p, len), ec );
             p += rc;
             CERR << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> t written " << rc << "  " << ec << " remain " << (end-p) <<  endl;
-            std::this_thread::sleep_for( chrono::microseconds(( rand() % 100 ) / 96 ));
+            std::this_thread::sleep_for( chrono::microseconds(( rand() % 100 ) / 98 ));
 
         }
         //std::this_thread::sleep_for( chrono::seconds( 1 ));
@@ -348,18 +349,41 @@ void test2() {
 
 }
 
+string int2hex(int i) {
+    char buffer[100];
+    snprintf(buffer, 100, "%x", i );
+    return string(buffer);
+}
+
+string string2chunks( string s ) {
+    string rv;
+    const char* p = s.data();
+    const char* end = p + s.size();
+    while( p != end ) {
+        size_t len = min( long(1 + rand() % 512)  , (end-p) );
+        rv.append(int2hex(len));
+        rv.append("\r\n");
+        rv.append( p, len);
+        rv.append("\r\n");
+        p += len;
+    }
+    rv.append("0\r\n\r\n");
+    return rv;
+}
+
+
+
 
 void test3() {
-    //auto b1 = make_random_string( 1042 + rand() % 10042, 'a', 'z' +1  );
+    auto s = make_random_string( 1042 + rand() % 10042, verbose ? 'a': 0, 'z' +1  );
     auto rand_head_name1 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 1 );
     auto rand_head_value1 = make_random_string(1 + rand() % 1042, 'a', 126  );
     auto rand_head_name2 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 26 );
     auto rand_head_value2 = make_random_string(1 + rand() % 1042, 'a', 126  );
-    //string hexlen = boost::lexical_cast<string>( b1.size() );
+    auto garbage = make_random_string(1 + rand() % 1042, 'A', 'Z'+ 1 );
 
-    string hexlen = "F";
-    auto b1 = make_random_string( 16, 'a', 'z' +1  );
-
+    auto b1 = string2chunks(s);
+    CERR << "++++++++++++++++++++ " << b1 << endl;
     
     const string s1 = "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
                       "Accept: */*\r\n"
@@ -367,17 +391,15 @@ void test3() {
                       "Transfer-Encoding: chunked\r\n"
                       + rand_head_name2 + ": " + rand_head_value2 + "\r\n"  
                       "\r\n"
-                      + hexlen + "\r\n"  
                       + b1
-                      + "\r\n"
-                      + "ZZZZZ";
+                      + garbage;
     io_service ios;
     CERR << b1.size() << endl;
     auto tr = test_server(ios,s1);
     CERR << tr->body.size() << endl;
     
     
-    assert( tr->body ==  b1 );
+    assert( tr->body ==  s );
     assert( tr->h );
     assert( tr->h->method == "POST" );
     assert( tr->h->url == "/post_identity_body_world?q=search#hey" );
@@ -387,7 +409,8 @@ void test3() {
     auto buffered = tr->s->connection()->buffered_data();
     std::string buffered_str( buffer_cast<const char*>(buffered), buffer_size(buffered) );
 
-
+    CERR << buffered_str << endl;
+        assert( garbage.find(buffered_str) == 0 ); // extra garbage must appear at the beginning of buffered data, if any
 }
 
 
@@ -397,7 +420,7 @@ int main() {
 
     RUN( test1, verbose ? 10: 1000 );
     RUN( test2, verbose ? 10: 3000 );
-    //RUN( test3, verbose ? 10: 3000 ); // TODO: chunked
+    RUN( test3, verbose ? 10: 3000 ); 
 }
 
 

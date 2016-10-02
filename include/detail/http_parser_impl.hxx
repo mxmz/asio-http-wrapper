@@ -125,6 +125,8 @@ struct http_parser_base<Handlers>::detail   {
         settings.on_headers_complete = &headers_complete_cb;
         settings.on_body = &body_cb;
         settings.on_message_complete = &message_complete_cb;
+        settings.on_chunk_header = nullptr;
+        settings.on_chunk_complete = nullptr;
     }
 
     void reset() {
