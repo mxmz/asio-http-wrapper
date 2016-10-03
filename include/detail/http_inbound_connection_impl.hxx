@@ -391,16 +391,16 @@ class connection_tmpl:
 template<   typename BodyObserver>
 template<   typename ReadHandler >
 void 
-connection_tmpl<BodyObserver>::async_read_request(ReadHandler handler) {
+connection_tmpl<BodyObserver>::async_wait_request(ReadHandler handler) {
         auto self( this->shared_from_this() );
         async_read( [this, self, handler](boost::system::error_code ec ) {
                     CERR << __FUNCTION__ << endl;
             if ( ec ) {
-                    handler( ec, http_request_header_ptr(), body_reader_ptr() );
+                    handler( ec, http_request_header_ptr() );
             } else if ( request_ready ) {
-                    handler( boost::system::error_code(), move(request_ready), move( make_body_observer() ) );
+                    handler( boost::system::error_code(), move(request_ready) );
             } else {
-                async_read_request(handler);
+                async_wait_request(handler);
             }
         } );
 }

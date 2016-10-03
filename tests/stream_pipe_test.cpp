@@ -36,19 +36,20 @@ typedef mxmz::stream_pipe_tmpl< asio::ip::tcp::socket> tcp_socket_pipe;
 
 using namespace std;
 
-const int src_port = 60000 + (rand()%5000);
-const int dst_port = 60000 + (rand()%5000);
+const int src_port = 60000 + (rand_int()%5000);
+const int dst_port = 60000 + (rand_int()%5000);
 
 
 void test1()
 {
+    
 
         asio::io_service ios;
         asio::io_service ios2;
         auto src = std::make_shared<asio::ip::tcp::socket>(ios);
         asio::ip::tcp::socket dst(ios);
 
-        auto source  = make_random_string(1024*32 + ( 256 * rand() % 2 ) + (rand() % 256 )  );
+        auto source  = make_random_string(1024*32 + ( 256 * rand_int() % 2 ) + (rand_int() % 256 )  );
         string copy;
 
         std::promise<bool>   src_ready;
@@ -71,11 +72,11 @@ void test1()
                 const char* p = source.data();
                 const char* end = p + source.size();
                 while( p != end ) {
-                    size_t len = min( long(1 + rand() % 512)  , (end-p) );
+                    size_t len = min( long(1 + rand_int() % 512)  , (end-p) );
                     auto rc = sock.write_some( const_buffers_1(p, len) );
                     CERR << "t1 written " << rc << endl;
                     p += rc;
-                  //  std::this_thread::sleep_for( chrono::microseconds(( rand() % 10 ) / 9 ));
+                  //  std::this_thread::sleep_for( chrono::microseconds(( rand_int() % 10 ) / 9 ));
                 }
              } 
              CERR << "t1 finished" << endl;      
@@ -94,12 +95,12 @@ void test1()
              if ( ! ec ) {
                  char buffer[ 1024 ];
                  while( true ) {
-                     size_t len = 1 + rand() % 1000 ;
+                     size_t len = 1 + rand_int() % 1000 ;
                      auto rv = sock.read_some( mutable_buffers_1( buffer, len  ) , ec );
                      CERR << "t2 read " << rv << endl;
                      if ( ec ) break ;
                      copy.append( buffer, rv );
-                     //std::this_thread::sleep_for( chrono::microseconds(( rand() % 10 ) / 9 ));
+                     //std::this_thread::sleep_for( chrono::microseconds(( rand_int() % 10 ) / 9 ));
                  }
              }       
              CERR << "t2 finished" << endl;
@@ -125,10 +126,10 @@ void test1()
                   }  );
                   
         std::vector<std::thread> iosrunners;
-        int thcount = 1  + rand() % 4;
+        int thcount = 1  + rand_int() % 4;
         for ( int i = 0; i != thcount; ++i ) {
             thread t( [&ios,i ]() {
-                        std::this_thread::sleep_for( chrono::microseconds(rand() % 3 ));
+                        std::this_thread::sleep_for( chrono::microseconds(rand_int() % 3 ));
 //                        cout << i << ": " << std::this_thread::get_id() << endl; 
                         ios.run();
             });

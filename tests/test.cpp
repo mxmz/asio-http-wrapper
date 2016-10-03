@@ -23,7 +23,7 @@ std::string make_random_string(int c, int from,  int to ) {
     std::string s;
     s.reserve(c);
     for ( int i = 0; i < c; ++i) {
-          s.push_back( from  + rand() % (to-from) );
+          s.push_back( from  + rand_int() % (to-from) );
     }
     return s;
 }
@@ -32,7 +32,7 @@ std::string make_random_string(int c) {
     std::string s;
     s.reserve(c);
     for ( int i = 0; i < c; ++i) {
-        s.push_back( 'a' + rand() % 26 );
+        s.push_back( 'a' + rand_int() % 26 );
     }
     return s;
 }
@@ -53,5 +53,18 @@ void run(const char* name, void(* func)(), int count )
     } 
     cout << name << " ok " << i  << endl;
 }
+
+
+int init() {
+    srand(time(nullptr) * getpid());
+    return 0;
+}
+
+int rand_int() {
+    static const int _ = init();
+    return _ + ::rand();
+}
+
+
 
 }

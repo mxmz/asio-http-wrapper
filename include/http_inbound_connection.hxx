@@ -158,8 +158,7 @@ class connection_tmpl:
     }    
 
     template<   typename ReadHandler >
-    void async_read_request(ReadHandler handler);
-
+    void async_wait_request(ReadHandler handler);
 
 };
 

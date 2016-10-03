@@ -4,7 +4,6 @@
 #include <iostream>
 #include <chrono>
 #include <stdlib.h>
-
 #include "boost/lexical_cast.hpp"
 
 #include "test.h"
@@ -16,7 +15,7 @@ using std::cout;
 using std::endl;
 
 
-
+int rand_int() ;
 std::string make_random_string(int c, int from,  int to );
 
 std::string make_random_string(int c);

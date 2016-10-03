@@ -1,4 +1,3 @@
-#include <stdlib.h>
 #include <iostream>
 #include <chrono>
 #include <queue>
@@ -39,6 +38,7 @@ using std::function;
 using namespace mxmz;
 using namespace mxmztest;
 
+
 class parser  {
     typedef mxmz::buffering_request_http_parser<parser> request_parser_t;
     typedef shared_ptr<request_parser_t> request_parser_ptr;
@@ -62,7 +62,7 @@ class parser  {
     size_t handle_body_chunk( const char* p , size_t l ) {
         CERR << "handle_body: l " << l << endl;
         if ( l == 0 ) return 0;
-        size_t rl = rand() % (l+1)  ;
+        size_t rl = rand_int() % (l+1)  ;
         body.append( p, rl );
         CERR << "handle_body: rl " << rl << endl;
           CERR << "handle_body: body " << body.size() << endl;
@@ -92,13 +92,13 @@ void test1() {
 
     parser prs;
     
-    auto b1 = make_random_string( 1042 + rand() % 10042, 0, 256 );
+    auto b1 = make_random_string( 1042 + rand_int() % 10042, 0, 256 );
     
 
     string bodylen = boost::lexical_cast<string>( b1.size() );
 
-    auto rand_head_name =  make_random_string(1 + rand() % 2042, 'a', 'a'+ 26 );
-    auto rand_head_value = make_random_string(1 + rand() % 2042, 'a', 126  );
+    auto rand_head_name =  make_random_string(1 + rand_int() % 2042, 'a', 'a'+ 26 );
+    auto rand_head_value = make_random_string(1 + rand_int() % 2042, 'a', 126  );
 
     const string s1 = "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
                       "Accept: */*\r\n"
@@ -117,7 +117,7 @@ void test1() {
     float bufsize = 4;
 
     while( p != end ) {
-          long int len = size_t( bufsize + 1 ); bufsize *= 1 + float(rand()%10 - 2 )/10;
+          long int len = size_t( bufsize + 1 ); bufsize *= 1 + float(rand_int()%10 - 2 )/10;
           len = min( len , (end-p) );
           CERR << "paused " << prs.paused() << endl;
           long int consumed = prs.parse( p, len );
@@ -140,7 +140,7 @@ void test1() {
     }
     
      while( p != end ) {
-          long int len = size_t( bufsize + 1 ); bufsize *= 1 + float(rand()%10 - 4 )/10;
+          long int len = size_t( bufsize + 1 ); bufsize *= 1 + float(rand_int()%10 - 4 )/10;
           len = min( len , (end-p) );
           CERR << "paused " << prs.paused() << endl;
           long int consumed = prs.parse( p, len );
@@ -201,21 +201,15 @@ struct test_reader : std::enable_shared_from_this<test_reader> {
     }
 };
 
-int init() {
-    srand(time(nullptr));
-    return 0;
-}
 
 
-int _ = init();
-
-int srv_port = 60000 + (rand()%5000);
+int srv_port = 60000 + (rand_int()%5000);
 
 auto test_server(io_service& ios, string s1) {
 
-    size_t bodybuffer_size = rand() % 2048 + 10;
-    size_t readbuffer_size = rand() % 2048 + 10;
-    size_t testreader_readbuffer_size = rand() % 2048 + 10;
+    size_t bodybuffer_size = rand_int() % 2048 + 10;
+    size_t readbuffer_size = rand_int() % 2048 + 10;
+    size_t testreader_readbuffer_size = rand_int() % 2048 + 10;
 
     
        
@@ -251,12 +245,13 @@ auto test_server(io_service& ios, string s1) {
                 CERR << "new connnection" << endl;
                
                 auto conn = make_shared<conn_t>( move(socket), bodybuffer_size, readbuffer_size ) ;
-                conn->async_read_request( [tr,conn]( boost::system::error_code ec, 
-                                                     connection::http_request_header_ptr h,  
-                                                     connection::body_reader_ptr br  ) {
+                conn->async_wait_request( [tr,conn]( boost::system::error_code ec, 
+                                                     connection::http_request_header_ptr h  
+                                                     ) {
                     CERR << ec <<  endl;
                         CERR << h->method << endl;
                         CERR << h->url << endl;
+                        auto br  = std::make_shared<body_reader>(conn);
                         tr->s = br;
                         tr->h = move(h);
                         tr->start();
@@ -282,12 +277,12 @@ auto test_server(io_service& ios, string s1) {
         const char* p = source.data();
         const char* end = p + source.size();
         while( p != end ) {
-            size_t len = min( long(1024 + rand() % 2048)  , (end-p) );
+            size_t len = min( long(1024 + rand_int() % 2048)  , (end-p) );
             boost::system::error_code ec;
             auto rc = conn.write_some( const_buffers_1(p, len), ec );
             p += rc;
             CERR << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> t written " << rc << "  " << ec << " remain " << (end-p) <<  endl;
-            std::this_thread::sleep_for( chrono::microseconds(( rand() % 100 ) / 98 ));
+            std::this_thread::sleep_for( chrono::microseconds(( rand_int() % 100 ) / 98 ));
 
         }
         //std::this_thread::sleep_for( chrono::seconds( 1 ));
@@ -310,13 +305,13 @@ auto test_server(io_service& ios, string s1) {
 } 
 
 void test2() {
-    auto b1 = make_random_string( 1042 + rand() % 10042, 'a', 'z' +1  );
+    auto b1 = make_random_string( 1042 + rand_int() % 10042, 'a', 'z' +1  );
     string bodylen = boost::lexical_cast<string>( b1.size() );
-    auto rand_head_name1 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 26 );
-    auto rand_head_value1 = make_random_string(1 + rand() % 1042, 'a', 126  );
-    auto rand_head_name2 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 26 );
-    auto rand_head_value2 = make_random_string(1 + rand() % 1042, 'a', 126  );
-    auto garbage = make_random_string(1 + rand() % 1042, 'A', 'Z'+ 1 );
+    auto rand_head_name1 =  make_random_string(1 + rand_int() % 1042, 'a', 'a'+ 26 );
+    auto rand_head_value1 = make_random_string(1 + rand_int() % 1042, 'a', 126  );
+    auto rand_head_name2 =  make_random_string(1 + rand_int() % 1042, 'a', 'a'+ 26 );
+    auto rand_head_value2 = make_random_string(1 + rand_int() % 1042, 'a', 126  );
+    auto garbage = make_random_string(1 + rand_int() % 1042, 'A', 'Z'+ 1 );
     
     const string s1 = "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
                       "Accept: */*\r\n"
@@ -360,7 +355,7 @@ string string2chunks( const string& s ) {
     const char* p = s.data();
     const char* end = p + s.size();
     while( p != end ) {
-        size_t len = min( long(1 + rand() % 512)  , (end-p) );
+        size_t len = min( long(1 + rand_int() % 512)  , (end-p) );
         rv.append(int2hex(len));
         rv.append("\r\n");
         rv.append( p, len);
@@ -375,12 +370,12 @@ string string2chunks( const string& s ) {
 
 
 void test3() {
-    auto s = make_random_string( 1042 + rand() % 10042, verbose ? 'a': 0, 'z' +1  );
-    auto rand_head_name1 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 26 );
-    auto rand_head_value1 = make_random_string(1 + rand() % 1042, 'a', 126  );
-    auto rand_head_name2 =  make_random_string(1 + rand() % 1042, 'a', 'a'+ 26 );
-    auto rand_head_value2 = make_random_string(1 + rand() % 1042, 'a', 126  );
-    auto garbage = make_random_string(1 + rand() % 1042, 'A', 'Z'+ 1 );
+    auto s = make_random_string( 1042 + rand_int() % 10042, verbose ? 'a': 0, 'z' +1  );
+    auto rand_head_name1 =  make_random_string(1 + rand_int() % 1042, 'a', 'a'+ 26 );
+    auto rand_head_value1 = make_random_string(1 + rand_int() % 1042, 'a', 126  );
+    auto rand_head_name2 =  make_random_string(1 + rand_int() % 1042, 'a', 'a'+ 26 );
+    auto rand_head_value2 = make_random_string(1 + rand_int() % 1042, 'a', 126  );
+    auto garbage = make_random_string(1 + rand_int() % 1042, 'A', 'Z'+ 1 );
 
     auto b1 = string2chunks(s);
     CERR << "++++++++++++++++++++ " << b1 << endl;

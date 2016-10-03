@@ -37,5 +37,7 @@ ADD_TEST( NAME stream_pipe_test COMMAND stream_pipe_test )
 ADD_TEST( NAME ring_buffer_test COMMAND ring_buffer_test )
 ADD_TEST( NAME http_inbound_connection_test COMMAND http_inbound_connection_test ENVIRONMENT )
 
+SET( CTEST_PARALLEL_LEVEL "10" )
+
 
 

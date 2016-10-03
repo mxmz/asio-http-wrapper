@@ -118,7 +118,7 @@ void readparse( const string&s, Parser& parser ) {
     const char* p = s.data();
     const char* end = p + s.size();
     while( p != end ) {
-          long int len = size_t(bufsize); bufsize *= 1.266; bufsize += rand() % 10 ;
+          long int len = size_t(bufsize); bufsize *= 1.266; bufsize += rand_int() % 10 ;
           len = min( len , (end-p) );
           CERR << "readparse: len " << len << endl;
           parser.parse( p, len );
@@ -363,13 +363,13 @@ void test6()
 {      
     my_parser_pausing  parser(my_parser_pausing::Request);
 
-    auto b1 = make_random_string( 1042 + rand() % 1042, 0, 256 );
-    auto b2 = make_random_string( 1042 + rand() % 42, 0, 256  );
+    auto b1 = make_random_string( 1042 + rand_int() % 1042, 0, 256 );
+    auto b2 = make_random_string( 1042 + rand_int() % 42, 0, 256  );
 
     string bodylen = boost::lexical_cast<string>( b1.size() + b2.size() );
 
-    auto rand_head_name =  make_random_string(142 + rand() % 142, 'a', 'z' );
-    auto rand_head_value = make_random_string(142 + rand() % 142, 'a', 127 );
+    auto rand_head_name =  make_random_string(142 + rand_int() % 142, 'a', 'z' );
+    auto rand_head_value = make_random_string(142 + rand_int() % 142, 'a', 127 );
 
     const string s1 = "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
                       "Accept: */*\r\n"
