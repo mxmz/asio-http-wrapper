@@ -59,15 +59,17 @@ class mock_asio_socket {
      void async_read_some(
         const MutableBufferSequence & buffers,
             ReadHandler handler) {
-                timer_.expires_from_now( std::chrono::microseconds(0) );
-                timer_.async_wait([_handler=move(handler),this,buffers]( const boost::system::error_code& ec ) mutable {
+                //timer_.expires_from_now( std::chrono::microseconds(0) );
+                // timer_.async_wait([_handler=move(handler),this,buffers]( const boost::system::error_code& ec ) mutable {
+                timer_.get_io_service().post([_handler=move(handler),this,buffers]() mutable {    
+
                         if ( consumed_ == data_.size() ) {
                                _handler( boost::asio::error::eof, 0 );    
                         } else {
                             size_t len = min( size_t(10 + rand_int() % 65535)  , (data_.size() - consumed_) );
                             size_t used = buffer_copy( buffers, const_buffers_1(data_.data() + consumed_,len) );
                             consumed_ += used;
-                            _handler( ec, used );
+                            _handler( boost::system::error_code(), used );
                         }
                     } );
             }
