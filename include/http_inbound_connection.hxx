@@ -97,14 +97,14 @@ class buffering_request_http_parser  {
 
 
 
-template< class BodyObserver >
+template< class BodyObserver, class Socket =  ip::tcp::socket >
 class connection_tmpl: 
-    public   std::enable_shared_from_this< connection_tmpl<BodyObserver> >, 
-    public  mxmz::buffering_request_http_parser< connection_tmpl<BodyObserver> > {
+    public   std::enable_shared_from_this< connection_tmpl<BodyObserver,Socket> >, 
+    public  mxmz::buffering_request_http_parser< connection_tmpl<BodyObserver,Socket> > {
 
-    typedef mxmz::buffering_request_http_parser<connection_tmpl<BodyObserver>> base_t;
+    typedef mxmz::buffering_request_http_parser<connection_tmpl<BodyObserver,Socket>> base_t;
 
-    ip::tcp::socket     socket;
+    Socket              socket;
     mxmz::ring_buffer   rb;
     BodyObserver*       body_handler;
     size_t  bytes_transferred = 0;
@@ -115,7 +115,7 @@ class connection_tmpl:
             return rb.data() ;
     }
 
-    connection_tmpl ( ip::tcp::socket&& s, size_t buffer_threshold, size_t buffer_size) :
+    connection_tmpl ( Socket&& s, size_t buffer_threshold, size_t buffer_size) :
                 base_t(buffer_threshold),
                 socket( move(s)), 
                 rb( buffer_size ),
@@ -163,9 +163,9 @@ class connection_tmpl:
 };
 
 
-
-class body_reader : public std::enable_shared_from_this< body_reader>  {
-    typedef shared_ptr< connection_tmpl< body_reader > > conn_ptr;
+template < class Socket  = ip::tcp::socket >
+class body_reader_tmpl : public std::enable_shared_from_this< body_reader_tmpl<Socket> >  {
+    typedef shared_ptr< connection_tmpl< body_reader_tmpl<Socket>, Socket > > conn_ptr;
 
     conn_ptr          cnn;
     
@@ -175,16 +175,16 @@ class body_reader : public std::enable_shared_from_this< body_reader>  {
         return cnn;
     }
 
-    body_reader()  {
+    body_reader_tmpl()  {
 
     }
-    body_reader( conn_ptr p ) :
+    body_reader_tmpl( conn_ptr p ) :
         cnn(move(p)),
         current_buffer((char*)"",0) 
         {
             cnn->bind(this);
         }
-    ~body_reader() {
+    ~body_reader_tmpl() {
         cnn->bind(nullptr);
     }
 

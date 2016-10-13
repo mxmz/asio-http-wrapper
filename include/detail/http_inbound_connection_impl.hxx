@@ -388,10 +388,10 @@ class connection_tmpl:
 
 */        
 
-template<   typename BodyObserver>
+template<   typename BodyObserver, typename Socket >
 template<   typename ReadHandler >
 void 
-connection_tmpl<BodyObserver>::async_wait_request(ReadHandler handler) {
+connection_tmpl<BodyObserver,Socket>::async_wait_request(ReadHandler handler) {
         auto self( this->shared_from_this() );
         async_read( [this, self, handler](boost::system::error_code ec ) {
                     CERR << __FUNCTION__ << endl;
@@ -406,10 +406,10 @@ connection_tmpl<BodyObserver>::async_wait_request(ReadHandler handler) {
 }
 
 
-template<   typename BodyObserver>
+template<   typename BodyObserver, typename Socket >
 template<   typename ReadHandler >
 void 
-connection_tmpl<BodyObserver>::async_read(ReadHandler handler) {
+connection_tmpl<BodyObserver,Socket>::async_read(ReadHandler handler) {
         auto self( this->shared_from_this() );
                     
         auto processData = [this,self, handler]( boost::system::error_code ec, std::size_t bytes ) {
@@ -442,9 +442,9 @@ connection_tmpl<BodyObserver>::async_read(ReadHandler handler) {
 
 
 
-template<  class BodyObserver >
+template<  class BodyObserver , typename Socket >
 shared_ptr< BodyObserver> 
-connection_tmpl<BodyObserver>::make_body_observer() {
+connection_tmpl<BodyObserver,Socket>::make_body_observer() {
     return make_shared<BodyObserver>(this->shared_from_this() );
 }
 

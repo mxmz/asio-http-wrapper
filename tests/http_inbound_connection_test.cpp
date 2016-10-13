@@ -14,6 +14,7 @@
 
 #include "http_inbound_connection.hxx"
 #include "ring_buffer.hxx"
+#include "socketmock.hxx"
 
 using namespace boost::asio;
 
@@ -162,24 +163,17 @@ using namespace std;
 
 /* ---------------------------------------------------------- body_reader ----------------- */
 
-
-
-
-
-
-
-typedef connection_tmpl<mxmz::body_reader> connection;
-
-
-struct test_reader : std::enable_shared_from_this<test_reader> {
-    connection::http_request_header_ptr h;
-    connection::body_reader_ptr s;
+template< class Connection >
+struct test_reader_tmpl : std::enable_shared_from_this<test_reader_tmpl<Connection>> {
+    typedef Connection connection;
+    typename connection::http_request_header_ptr h;
+    typename connection::body_reader_ptr s;
 
     std::string body;
     mxmz::ring_buffer rb;
     std::promise<bool> finished;
 
-    test_reader(size_t buffer_size ) : rb(buffer_size) {
+    test_reader_tmpl(size_t buffer_size ) : rb(buffer_size) {
         
     }     
 
@@ -207,6 +201,9 @@ int srv_port = 60000 + (rand_int()%5000);
 
 auto test_server(io_service& ios, string s1) {
 
+    typedef connection_tmpl<mxmz::body_reader_tmpl<> > connection;
+    typedef test_reader_tmpl<connection> test_reader;
+
     size_t bodybuffer_size = rand_int() % 2048 + 10;
     size_t readbuffer_size = rand_int() % 2048 + 10;
     size_t testreader_readbuffer_size = rand_int() % 2048 + 10;
@@ -229,7 +226,7 @@ auto test_server(io_service& ios, string s1) {
     std::string s;
 
     
-    typedef body_reader  body_reader_t;
+    typedef body_reader_tmpl<>  body_reader_t;
 
     typedef connection_tmpl< body_reader_t > conn_t;
 
@@ -251,7 +248,7 @@ auto test_server(io_service& ios, string s1) {
                     CERR << ec <<  endl;
                         CERR << h->method << endl;
                         CERR << h->url << endl;
-                        auto br  = std::make_shared<body_reader>(conn);
+                        auto br  = std::make_shared<body_reader_t>(conn);
                         tr->s = br;
                         tr->h = move(h);
                         tr->start();
@@ -302,9 +299,52 @@ auto test_server(io_service& ios, string s1) {
     CERR << readbuffer_size << endl;
 
         return tr;
-} 
+}
 
-void test2() {
+
+auto test_socketmock(io_service& ios, string s1) {
+
+    
+    
+
+
+    size_t bodybuffer_size = rand_int() % 2048 + 10;
+    size_t readbuffer_size = rand_int() % 2048 + 10;
+    size_t testreader_readbuffer_size = rand_int() % 2048 + 10;
+
+    
+           
+    mock_asio_socket    socket(  ios, move(s1) );
+    
+    typedef body_reader_tmpl<mock_asio_socket>  body_reader_t;
+
+    typedef connection_tmpl< body_reader_t, mock_asio_socket > conn_t;
+    typedef test_reader_tmpl<conn_t> test_reader;
+
+    auto tr = std::make_shared<test_reader>(testreader_readbuffer_size);
+    auto srv_finished_future = tr->finished.get_future();
+
+    auto conn = make_shared<conn_t>( move(socket), bodybuffer_size, readbuffer_size ) ;
+    conn->async_wait_request( [tr,conn]( boost::system::error_code ec, 
+                                                     conn_t::http_request_header_ptr h  
+                                                     ) {
+                    CERR << ec <<  endl;
+                        CERR << h->method << endl;
+                        CERR << h->url << endl;
+                        auto br  = std::make_shared<body_reader_t>(conn);
+                        tr->s = br;
+                        tr->h = move(h);
+                        tr->start();
+                } );
+
+
+    ios.run();                
+    return tr;
+
+}
+
+template< class TestFunc >
+void test_no_chunked(TestFunc test_func) {
     auto b1 = make_random_string( 1042 + rand_int() % 10042, 'a', 'z' +1  );
     string bodylen = boost::lexical_cast<string>( b1.size() );
     auto rand_head_name1 =  make_random_string(1 + rand_int() % 1042, 'a', 'a'+ 26 );
@@ -322,7 +362,7 @@ void test2() {
                       "\r\n"
                       + b1 + garbage;
     io_service ios;
-    auto tr = test_server(ios,s1);
+    auto tr = test_func(ios,s1);
     CERR << tr->body.size() << endl;
     CERR << b1.size() << endl;
     assert( tr->body ==  b1 );
@@ -367,9 +407,8 @@ string string2chunks( const string& s ) {
 }
 
 
-
-
-void test3() {
+template< class TestFunc >
+void test_chunked(TestFunc test_func) {
     auto s = make_random_string( 1042 + rand_int() % 10042, verbose ? 'a': 0, 'z' +1  );
     auto rand_head_name1 =  make_random_string(1 + rand_int() % 1042, 'a', 'a'+ 26 );
     auto rand_head_value1 = make_random_string(1 + rand_int() % 1042, 'a', 126  );
@@ -390,7 +429,7 @@ void test3() {
                       + garbage;
     io_service ios;
     CERR << b1.size() << endl;
-    auto tr = test_server(ios,s1);
+    auto tr = test_func(ios,s1);
     CERR << tr->body.size() << endl;
     
     
@@ -408,14 +447,27 @@ void test3() {
         assert( garbage.find(buffered_str) == 0 ); // extra garbage must appear at the beginning of buffered data, if any
 }
 
+void test2() {
+    test_no_chunked(&test_server);
+}
+void test3() {
+    test_chunked(&test_server);
+}
 
+void test2mok() {
+    test_no_chunked(&test_socketmock);
+}
+void test3mok() {
+    test_chunked(&test_socketmock);
+}
 
 
 int main() {
 
     RUN( test1, verbose ? 10: 1000 );
     RUN( test2, verbose ? 10: 3000 );
-    RUN( test3, verbose ? 10: 3000 ); 
+    RUN( test3, verbose ? 10: 3000 );
+    RUN( test3mok, verbose ? 10: 3000 );  
 }
 
 
