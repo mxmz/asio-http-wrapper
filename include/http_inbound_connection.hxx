@@ -10,7 +10,7 @@
 #include <boost/asio/ip/tcp.hpp>
 #include "util/ring_buffer.hxx"
 #include "util/pimpl.h"
-#include "test.h"
+
 
 namespace mxmz {
 
@@ -159,13 +159,13 @@ class connection_tmpl:
          auto self( this->shared_from_this() );
          auto processData = [this,self, handler]( boost::system::error_code ec, std::size_t bytes ) {
             bytes_transferred += bytes;
-            CERR << "<<<<<<<<<<<<<<<<<<<<<<<< connection socket.async_read_some bytes: "<< ec  << " " << bytes <<  " " << bytes_transferred << endl;
+//            CERR << "<<<<<<<<<<<<<<<<<<<<<<<< connection socket.async_read_some bytes: "<< ec  << " " << bytes <<  " " << bytes_transferred << endl;
             rb.commit(bytes);
             
             auto toread = rb.data();
-            CERR << "connection::async_read_some parsing  " << buffer_size(toread) << endl;
+//            CERR << "connection::async_read_some parsing  " << buffer_size(toread) << endl;
             size_t consumed = this->parse( buffer_cast<const char*>(toread), buffer_size(toread)  );
-            CERR << "connection::async_read_some parsed: " << consumed << " " << this->paused()  << " " <<  ec <<  " " << buffer_size(toread) << " " << this->buffering() << endl;
+//            CERR << "connection::async_read_some parsed: " << consumed << " " << this->paused()  << " " <<  ec <<  " " << buffer_size(toread) << " " << this->buffering() << endl;
             rb.consume(consumed);
             if ( this->buffering() ) { // still something to flush
                     ec = boost::system::error_code() ;
@@ -174,13 +174,13 @@ class connection_tmpl:
         };
 
         if ( rb.readable() or this->buffering() ) {
-            CERR << "async_read: start: unparsed stuff" << endl;
+//            CERR << "async_read: start: unparsed stuff" << endl;
             socket.get_io_service().post([processData]() {
                 processData( boost::system::error_code(), 0  );
             });
         } else {
             auto towrite = rb.prepare();
-            CERR << "async_read: start: towrite " <<buffer_size(towrite) << endl;
+//            CERR << "async_read: start: towrite " <<buffer_size(towrite) << endl;
             socket.async_read_some( towrite, processData );
         }
     }
@@ -203,7 +203,7 @@ class connection_tmpl:
     void async_wait_request(ReadHandler handler) {
         auto self( this->shared_from_this() );
         async_read( [this, self, handler](boost::system::error_code ec ) {
-                    CERR << __FUNCTION__ << endl;
+//                    CERR << __FUNCTION__ << endl;
             if ( ec ) {
                     handler( ec, http_request_header_ptr() );
             } else if ( request_ready ) {
@@ -253,15 +253,15 @@ class body_reader_tmpl :
     bool                            eof = false;
 
     size_t handle_body_chunk( const char* p , size_t l ) {
-        CERR << "handle_body_chunk: got " << l <<  " avail " << buffer_size(current_buffer) << endl;
+//        CERR << "handle_body_chunk: got " << l <<  " avail " << buffer_size(current_buffer) << endl;
         size_t used = buffer_copy( current_buffer, const_buffers_1(p,l) );
         current_buffer = current_buffer + used;
-        CERR << "handle_body_chunk: used " << used << endl;
+//        CERR << "handle_body_chunk: used " << used << endl;
         return used;
     }
 
     void notify_body_end() {
-            CERR << __FUNCTION__ << endl;
+//            CERR << __FUNCTION__ << endl;
             eof = true;
     }
 
@@ -269,7 +269,7 @@ class body_reader_tmpl :
     void async_read_some(
         const boost::asio::mutable_buffer& buffer,
             ReadHandler handler) {
-                    CERR << "body_reader async_read_some eof  " << eof << endl;
+//                    CERR << "body_reader async_read_some eof  " << eof << endl;
                     if ( eof ) {
                             cnn->post( [handler]() {
                                   handler(boost::asio::error::eof, 0);      
@@ -280,7 +280,7 @@ class body_reader_tmpl :
                         auto self( this->shared_from_this() );
                         cnn->async_read( [this,self,origlen,handler](boost::system::error_code ec) {
                             size_t len = origlen - buffer_size(current_buffer);
-                            CERR << "body_reader async_read_some lambda  " << ec << endl;
+  //                          CERR << "body_reader async_read_some lambda  " << ec << endl;
                             if ( eof ) ec = boost::asio::error::eof;  
                             if ( ec ) {
                                 handler( ec,  len  );
