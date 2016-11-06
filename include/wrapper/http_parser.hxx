@@ -2,9 +2,9 @@
 #define http_parser_29834729834729834729384729482741762537165371635176235173651723615723
 
 #include <memory>
-#include "pimpl.h"
+#include "util/pimpl.h"
 
-namespace mxmz {
+namespace mxmz { namespace nodejs {
 
 class http_parser_state;
 
@@ -14,11 +14,17 @@ class http_parser_state;
     -   on_error( int , string )
     -   on_header_line( string, string )
     -   on_body( const char* , size_t )
-    -   on_response_headers_complete( int, string )
+    -   on_response_headers_complete( status, description )
     -   on_request_headers_complete( method, request_url )
     -   on_message_begin()
     -   on_message_complete()    
 */
+
+enum class parser_mode {
+            Request,
+            Response,
+            Both
+};
 
 template <class Handlers>
 class http_parser_base {
@@ -26,10 +32,8 @@ class http_parser_base {
     pimpl<detail,330,8> i;
 
 public:
-    enum mode_t { Request,
-                  Response,
-                  Both
-                };
+    typedef parser_mode mode_t ;
+                
     http_parser_base( mode_t, Handlers* );
     http_parser_base( mode_t, Handlers& ) ;
     http_parser_base( http_parser_state&&, Handlers* );
@@ -54,6 +58,6 @@ public:
 
 
 
-} //namespace xmmz
+} } //namespace xmmz::nodejs
 
 #endif

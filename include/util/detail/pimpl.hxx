@@ -1,30 +1,31 @@
 #ifndef pimpl_hxx_39845039850398503948530945830495830495830495830495832763547236
 #define pimpl_hxx_39845039850398503948530945830495830495830495830495832763547236
-#include "pimpl.h"
+#include "util/pimpl.h"
 
 namespace mxmz {
 
 template< class T, int Size, int Align >
-void pimpl<T,Size,Align>::check()
+inline void static_check_size()
 {
   // 10% tolerance margin
-  static_assert( (sizeof(T) <= Size) , "impl<> Size must be changed/1");
-  static_assert( (Size <= sizeof(T) * 1.1), "impl<> Size must be changed/2");
+  static_assert( (sizeof(T) <= Size) , "impl<> Size must be bigger");
+  static_assert( (Size <= sizeof(T) * 1.1), "impl<> Size must be smaller");
   static_assert(Align == alignof(T), "impl<> Align must be changed");
   //CERR << sizeof(T) << endl; abort();
 }
+
 
 template< class T, int Size, int Align >
 template<typename ...Args> 
 pimpl<T,Size,Align>::pimpl(Args&&... args  )
 {
-  check();
+  static_check_size<T,Size,Align>();
   new(mem)T(std::forward<Args>(args)...);
 }
 template< class T, int Size, int Align >
 pimpl<T,Size,Align>::pimpl()
 {
-  check();
+  static_check_size<T,Size,Align>();
   new(mem)T();
 }
 

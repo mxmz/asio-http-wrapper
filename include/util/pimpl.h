@@ -15,6 +15,8 @@ class pimpl {
      
     pimpl();
     ~pimpl();
+    
+    pimpl(const pimpl&) = delete;
 
 
     T&    operator *() ;
@@ -22,8 +24,6 @@ class pimpl {
     const T&    operator *() const ;
     const T*    operator ->() const ;
 
-    private:
-    inline void check();
 };
 
 

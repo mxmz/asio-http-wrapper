@@ -1,15 +1,13 @@
 #ifndef http_inbound_connection_impl_394853985739857398623572653726537625495679458679458679486749
 #define http_inbound_connection_impl_394853985739857398623572653726537625495679458679458679486749
 
-#include "http_inbound_connection.hxx"
 #include <iostream>
 #include <memory>
 #include <vector>
-#include "http_parser.hxx"
 #include "http_inbound_connection.hxx"
 #include <cassert>
 #include <cstring>
-#include "test.h"
+
 
 namespace mxmz {
 
@@ -93,15 +91,15 @@ class consumable_buffer {
 };
 
 
-template< class Handlers, class RequestHeaderBuilder> 
-class buffering_request_http_parser<Handlers,RequestHeaderBuilder>::detail : 
-    public  mxmz::http_parser_base< buffering_request_http_parser<Handlers, RequestHeaderBuilder>::detail >
+template< class Handlers, template< class H > class ParserImplBase,class RequestHeaderBuilder> 
+class buffering_request_http_parser<Handlers,ParserImplBase,RequestHeaderBuilder>::detail : 
+    public  ParserImplBase< buffering_request_http_parser<Handlers,ParserImplBase,RequestHeaderBuilder>::detail >
 {
-    typedef mxmz::http_parser_base< buffering_request_http_parser<Handlers, RequestHeaderBuilder>::detail > base_t;
+    typedef ParserImplBase< buffering_request_http_parser<Handlers, ParserImplBase, RequestHeaderBuilder>::detail > base_t;
         
     
     struct state_data {
-        RequestHeaderBuilder hrh_builder;
+        RequestHeaderBuilder    hrh_builder;
         consumable_buffer       body_buffered;
         error_code              error;
         bool                    complete = false;
@@ -129,7 +127,7 @@ public:
     
     
     detail(Handlers* c, size_t buffer_threshold = std::numeric_limits<size_t>::max()  ) :
-        base_t( base_t::Request ),
+        base_t( base_t::mode_t::Request ),
         buffer_threshold(buffer_threshold),
         handlers(c)
     {
@@ -237,56 +235,56 @@ public:
    
 
 
-template <class Handlers, class RHB>
-buffering_request_http_parser<Handlers,RHB>::buffering_request_http_parser(Handlers* hndls, size_t buffer_threshold )
-    : i( new detail(hndls, buffer_threshold) )
+template <class Handlers, template<class> class PIB, class RHB>
+buffering_request_http_parser<Handlers,PIB,RHB>::buffering_request_http_parser(Handlers* hndls, size_t buffer_threshold )
+    : i( hndls, buffer_threshold )
 {
 }
 
-template <class Handlers, class RHB>
-buffering_request_http_parser<Handlers,RHB>::buffering_request_http_parser(Handlers& hndls, size_t buffer_threshold )
-    : i( new detail(&hndls, buffer_threshold) )
+template <class Handlers, template<class> class PIB, class RHB>
+buffering_request_http_parser<Handlers,PIB,RHB>::buffering_request_http_parser(Handlers& hndls, size_t buffer_threshold )
+    : i( &hndls, buffer_threshold )
 {
 }
 
-template <class Handlers, class RHB>
-buffering_request_http_parser<Handlers,RHB>::buffering_request_http_parser(size_t buffer_threshold )
-    : i( new detail(static_cast<Handlers*>(this), buffer_threshold) )
+template <class Handlers, template<class> class PIB, class RHB>
+buffering_request_http_parser<Handlers,PIB,RHB>::buffering_request_http_parser(size_t buffer_threshold )
+    : i( static_cast<Handlers*>(this), buffer_threshold )
 {
 }
 
 
-template <class Handlers, class RHB>
-bool buffering_request_http_parser<Handlers,RHB>::paused() const 
+template <class Handlers, template<class> class PIB, class RHB>
+bool buffering_request_http_parser<Handlers,PIB,RHB>::paused() const 
 {
     return i->paused();
 }
 
-template <class Handlers, class RHB>
-bool buffering_request_http_parser<Handlers,RHB>::good() const 
+template <class Handlers, template<class> class PIB, class RHB>
+bool buffering_request_http_parser<Handlers,PIB,RHB>::good() const 
 {
     return i->good();
 }
 
-template <class Handlers, class RHB>
-void buffering_request_http_parser<Handlers,RHB>::reset()
+template <class Handlers, template<class> class PIB, class RHB>
+void buffering_request_http_parser<Handlers,PIB,RHB>::reset()
 {
     return i->reset();
 }
-template <class Handlers, class RHB>
-auto buffering_request_http_parser<Handlers,RHB>::flush() -> flush_info_t
+template <class Handlers, template<class> class PIB, class RHB>
+auto buffering_request_http_parser<Handlers,PIB,RHB>::flush() -> flush_info_t
 {
     return i->flush();
 }
 
-template <class Handlers, class RHB>
-size_t buffering_request_http_parser<Handlers,RHB>::parse(const char* buffer, size_t len)
+template <class Handlers, template<class> class PIB, class RHB>
+size_t buffering_request_http_parser<Handlers,PIB,RHB>::parse(const char* buffer, size_t len)
 {
     return i->parse(buffer, len);
 }
 
-template <class Handlers, class RHB>
-bool buffering_request_http_parser<Handlers,RHB>::buffering() const
+template <class Handlers, template<class> class PIB, class RHB>
+bool buffering_request_http_parser<Handlers,PIB,RHB>::buffering() const
 {   
         return i->buffering();
 }
@@ -388,80 +386,6 @@ class connection_tmpl:
 
 */        
 
-template<   typename BodyObserver, typename Socket >
-template<   typename ReadHandler >
-void 
-connection_tmpl<BodyObserver,Socket>::async_wait_request(ReadHandler handler) {
-        auto self( this->shared_from_this() );
-        async_read( [this, self, handler](boost::system::error_code ec ) {
-                    CERR << __FUNCTION__ << endl;
-            if ( ec ) {
-                    handler( ec, http_request_header_ptr() );
-            } else if ( request_ready ) {
-                    handler( boost::system::error_code(), move(request_ready) );
-            } else {
-                async_wait_request(handler);
-            }
-        } );
-}
-
-
-template<   typename BodyObserver, typename Socket >
-template<   typename ReadHandler >
-void 
-connection_tmpl<BodyObserver,Socket>::async_read(ReadHandler handler) {
-        auto self( this->shared_from_this() );
-                    
-        auto processData = [this,self, handler]( boost::system::error_code ec, std::size_t bytes ) {
-            bytes_transferred += bytes;
-            CERR << "<<<<<<<<<<<<<<<<<<<<<<<< connection socket.async_read_some bytes: "<< ec  << " " << bytes <<  " " << bytes_transferred << endl;
-            rb.commit(bytes);
-            
-            auto toread = rb.data();
-            CERR << "connection::async_read_some parsing  " << buffer_size(toread) << endl;
-            size_t consumed = this->parse( buffer_cast<const char*>(toread), buffer_size(toread)  );
-            CERR << "connection::async_read_some parsed: " << consumed << " " << this->paused()  << " " <<  ec <<  " " << buffer_size(toread) << " " << this->buffering() << endl;
-            rb.consume(consumed);
-            if ( this->buffering() ) { // still something to flush
-                    ec = boost::system::error_code() ;
-            }
-            handler( ec );
-        };
-
-        if ( rb.readable() or this->buffering() ) {
-            CERR << "async_read: start: unparsed stuff" << endl;
-            socket.get_io_service().post([processData]() {
-                processData( boost::system::error_code(), 0  );
-            });
-        } else {
-            auto towrite = rb.prepare();
-            CERR << "async_read: start: towrite " <<buffer_size(towrite) << endl;
-            socket.async_read_some( towrite, processData );
-        }
-}
-
-
-
-template<  class BodyObserver , typename Socket >
-shared_ptr< BodyObserver> 
-connection_tmpl<BodyObserver,Socket>::make_body_observer() {
-    return make_shared<BodyObserver>(this->shared_from_this() );
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -481,7 +405,4 @@ connection_tmpl<BodyObserver,Socket>::make_body_observer() {
 
 }
 
-
-
-#include "detail/http_parser_impl.hxx"
 #endif

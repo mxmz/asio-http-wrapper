@@ -13,7 +13,7 @@
 #include "test.hxx"
 
 #include "http_inbound_connection.hxx"
-#include "ring_buffer.hxx"
+#include "util/ring_buffer.hxx"
 #include "socketmock.hxx"
 
 using namespace boost::asio;
@@ -39,9 +39,15 @@ using std::function;
 using namespace mxmz;
 using namespace mxmztest;
 
+namespace mxmz {
+namespace nodejs {
+    template <class Handlers>
+        class http_parser_base;
+}
+}
 
 class parser  {
-    typedef mxmz::buffering_request_http_parser<parser> request_parser_t;
+    typedef mxmz::buffering_request_http_parser<parser,nodejs::http_parser_base> request_parser_t;
     typedef shared_ptr<request_parser_t> request_parser_ptr;
     public:
 
@@ -201,7 +207,7 @@ int srv_port = 60000 + (rand_int()%5000);
 
 auto test_server(io_service& ios, string s1) {
 
-    typedef connection_tmpl<mxmz::body_reader_tmpl<> > connection;
+    typedef connection_tmpl<mxmz::body_reader_tmpl<nodejs::http_parser_base>,nodejs::http_parser_base > connection;
     typedef test_reader_tmpl<connection> test_reader;
 
     size_t bodybuffer_size = rand_int() % 2048 + 10;
@@ -226,9 +232,9 @@ auto test_server(io_service& ios, string s1) {
     std::string s;
 
     
-    typedef body_reader_tmpl<>  body_reader_t;
+    typedef body_reader_tmpl<nodejs::http_parser_base>  body_reader_t;
 
-    typedef connection_tmpl< body_reader_t > conn_t;
+    typedef connection_tmpl< body_reader_t,nodejs::http_parser_base > conn_t;
 
     
     auto tr = std::make_shared<test_reader>(testreader_readbuffer_size);
@@ -316,9 +322,9 @@ auto test_socketmock(io_service& ios, string s1) {
            
     mock_asio_socket    socket(  ios, move(s1) );
     
-    typedef body_reader_tmpl<mock_asio_socket>  body_reader_t;
+    typedef body_reader_tmpl<nodejs::http_parser_base,mock_asio_socket>  body_reader_t;
 
-    typedef connection_tmpl< body_reader_t, mock_asio_socket > conn_t;
+    typedef connection_tmpl< body_reader_t, nodejs::http_parser_base, mock_asio_socket > conn_t;
     typedef test_reader_tmpl<conn_t> test_reader;
 
     auto tr = std::make_shared<test_reader>(testreader_readbuffer_size);
@@ -471,5 +477,6 @@ int main() {
 }
 
 
-
+#include "wrapper/detail/http_parser_impl.hxx"
 #include "detail/http_inbound_connection_impl.hxx"
+#include "util/detail/pimpl.hxx"

@@ -12,6 +12,6 @@
         "tests/Makefile": true,
         "**/.git*": true,
         "**/core": true,
-        "**/CMakeFiles/**" :  true
+        //"**/CMakeFiles/**" :  true
     }
 }

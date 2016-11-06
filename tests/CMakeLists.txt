@@ -27,7 +27,7 @@ SET_TARGET_PROPERTIES(  buffpipe1
                         stream_pipe_test 
                         http_inbound_connection_test
 		PROPERTIES 
-		COMPILE_FLAGS "-g -fpermissive -Wall -std=c++11 -std=c++14"
+		COMPILE_FLAGS "-g -fpermissive -Wall -std=c++11 -std=c++14 -O3 " 
 )
 
 ENABLE_TESTING()
@@ -37,7 +37,14 @@ ADD_TEST( NAME stream_pipe_test COMMAND stream_pipe_test )
 ADD_TEST( NAME ring_buffer_test COMMAND ring_buffer_test )
 ADD_TEST( NAME http_inbound_connection_test COMMAND http_inbound_connection_test ENVIRONMENT )
 
-SET( CTEST_PARALLEL_LEVEL "10" )
+ADD_TEST( NAME runtests COMMAND bash runtests.sh )
 
+ADD_CUSTOM_COMMAND( OUTPUT runtests.sh 
+                    COMMAND ls  ./*_test > runtests.sh
+                    DEPENDS http_inbound_connection_test ring_buffer_test stream_pipe_test http_parser_test
+                    COMMENT "Generate runtests.sh"
+                    )
 
+ADD_CUSTOM_TARGET( RunGenerator DEPENDS runtests.sh
+                   COMMENT "Checking if re-generation is required" )
 

@@ -8,8 +8,8 @@
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/strand.hpp>
 #include <boost/asio/ip/tcp.hpp>
-#include "http_parser.hxx"
-#include "ring_buffer.hxx"
+#include "util/ring_buffer.hxx"
+#include "util/pimpl.h"
 #include "test.h"
 
 namespace mxmz {
@@ -45,10 +45,13 @@ class http_request_header_builder;
     -   void notify_body_end()
 
 */
-template< class Handlers, class RequestHeaderBuilder = http_request_header_builder > 
+template< class Handlers, 
+        template< class H > class ParserImplBase, 
+        class RequestHeaderBuilder = http_request_header_builder 
+        > 
 class buffering_request_http_parser  {
         class detail;
-        std::unique_ptr<detail> i;
+        pimpl<detail,550,8> i;
 
         public:
         buffering_request_http_parser( Handlers&, size_t buffer_threshold );
@@ -97,12 +100,12 @@ class buffering_request_http_parser  {
 
 
 
-template< class BodyObserver, class Socket =  ip::tcp::socket >
+template< class BodyObserver, template< class H > class ParserImplBase, class Socket =  ip::tcp::socket >
 class connection_tmpl: 
-    public   std::enable_shared_from_this< connection_tmpl<BodyObserver,Socket> >, 
-    public  mxmz::buffering_request_http_parser< connection_tmpl<BodyObserver,Socket> > {
+    public  std::enable_shared_from_this< connection_tmpl<BodyObserver,ParserImplBase, Socket> >, 
+    public  mxmz::buffering_request_http_parser< connection_tmpl<BodyObserver,ParserImplBase,Socket>,ParserImplBase > {
 
-    typedef mxmz::buffering_request_http_parser<connection_tmpl<BodyObserver,Socket>> base_t;
+    typedef mxmz::buffering_request_http_parser<connection_tmpl<BodyObserver,ParserImplBase,Socket>,ParserImplBase> base_t;
 
     Socket              socket;
     mxmz::ring_buffer   rb;
@@ -136,8 +139,6 @@ class connection_tmpl:
     }
 
 
-    shared_ptr< BodyObserver> make_body_observer();
-
     template<   typename ReadHandler >
         void post(ReadHandler handler) {
                 socket.get_io_service().post(handler);
@@ -145,7 +146,35 @@ class connection_tmpl:
 
 
     template<   typename ReadHandler >
-        void async_read(ReadHandler handler);
+     void async_read(ReadHandler handler) {
+         auto self( this->shared_from_this() );
+         auto processData = [this,self, handler]( boost::system::error_code ec, std::size_t bytes ) {
+            bytes_transferred += bytes;
+            CERR << "<<<<<<<<<<<<<<<<<<<<<<<< connection socket.async_read_some bytes: "<< ec  << " " << bytes <<  " " << bytes_transferred << endl;
+            rb.commit(bytes);
+            
+            auto toread = rb.data();
+            CERR << "connection::async_read_some parsing  " << buffer_size(toread) << endl;
+            size_t consumed = this->parse( buffer_cast<const char*>(toread), buffer_size(toread)  );
+            CERR << "connection::async_read_some parsed: " << consumed << " " << this->paused()  << " " <<  ec <<  " " << buffer_size(toread) << " " << this->buffering() << endl;
+            rb.consume(consumed);
+            if ( this->buffering() ) { // still something to flush
+                    ec = boost::system::error_code() ;
+            }
+            handler( ec );
+        };
+
+        if ( rb.readable() or this->buffering() ) {
+            CERR << "async_read: start: unparsed stuff" << endl;
+            socket.get_io_service().post([processData]() {
+                processData( boost::system::error_code(), 0  );
+            });
+        } else {
+            auto towrite = rb.prepare();
+            CERR << "async_read: start: towrite " <<buffer_size(towrite) << endl;
+            socket.async_read_some( towrite, processData );
+        }
+    }
 
 
     typedef std::unique_ptr<const http_request_header>      http_request_header_ptr;
@@ -158,14 +187,29 @@ class connection_tmpl:
     }    
 
     template<   typename ReadHandler >
-    void async_wait_request(ReadHandler handler);
+    void async_wait_request(ReadHandler handler) {
+        auto self( this->shared_from_this() );
+        async_read( [this, self, handler](boost::system::error_code ec ) {
+                    CERR << __FUNCTION__ << endl;
+            if ( ec ) {
+                    handler( ec, http_request_header_ptr() );
+            } else if ( request_ready ) {
+                    handler( boost::system::error_code(), move(request_ready) );
+            } else {
+                async_wait_request(handler);
+            }
+        } );
+    }
+
 
 };
 
 
-template < class Socket  = ip::tcp::socket >
-class body_reader_tmpl : public std::enable_shared_from_this< body_reader_tmpl<Socket> >  {
-    typedef shared_ptr< connection_tmpl< body_reader_tmpl<Socket>, Socket > > conn_ptr;
+template < template< class H > class ParserImplBase, class Socket  = ip::tcp::socket >
+class body_reader_tmpl : 
+    public std::enable_shared_from_this< body_reader_tmpl<ParserImplBase,Socket> >  {
+
+    typedef shared_ptr< connection_tmpl< body_reader_tmpl<ParserImplBase,Socket>,ParserImplBase, Socket > > conn_ptr;
 
     conn_ptr          cnn;
     

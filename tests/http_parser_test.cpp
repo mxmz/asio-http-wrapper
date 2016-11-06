@@ -8,7 +8,7 @@
 #include <memory>
 #include <cassert>
 
-#include "http_parser.hxx"
+#include "wrapper/http_parser.hxx"
 #include "boost/lexical_cast.hpp"
 
 using namespace std;
@@ -131,10 +131,10 @@ void test1()
 {
  
 
-    typedef mxmz::http_parser_base<handlers_interface> my_parser;
+    typedef mxmz::nodejs::http_parser_base<handlers_interface> my_parser;
     my_handlers handlers;
     
-    my_parser  parser(my_parser::Request, handlers);
+    my_parser  parser(my_parser::mode_t::Request, handlers);
 
     const string s1 = "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
                       "Accept: */*\r\n"
@@ -167,7 +167,7 @@ void test2()
  
 
     my_handlers handlers;
-    typedef mxmz::http_parser_base<handlers_interface> my_parser; 
+    typedef mxmz::nodejs::http_parser_base<handlers_interface> my_parser; 
     
 
     const string s1 = "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
@@ -185,7 +185,7 @@ void test2()
 
     typedef std::unique_ptr<my_parser> my_parser_ptr;
 
-    my_parser_ptr parser( new my_parser(my_parser::Request, handlers) );
+    my_parser_ptr parser( new my_parser(my_parser::mode_t::Request, handlers) );
 
     for( auto& s : chunks ) {
         auto current = move(parser);
@@ -213,8 +213,8 @@ void test3()
  
 
     my_handlers handlers;
-    typedef mxmz::http_parser_base<handlers_interface> my_parser; 
-    my_parser  parser(my_parser::Request, handlers);
+    typedef mxmz::nodejs::http_parser_base<handlers_interface> my_parser; 
+    my_parser  parser(my_parser::mode_t::Request, handlers);
 
     const string s1 = "POST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
                       "Acc ept: */*\r\n"
@@ -237,8 +237,8 @@ void test4()
  
 
     my_handlers handlers;  
-    typedef mxmz::http_parser_base<handlers_interface> my_parser; 
-    my_parser  parser(my_parser::Request, handlers);
+    typedef mxmz::nodejs::http_parser_base<handlers_interface> my_parser; 
+    my_parser  parser(my_parser::mode_t::Request, handlers);
 
     const string s1 = "PO ST /post_identity_body_world?q=search#hey HTTP/1.1\r\n"
                       "Accept: */*\r\n"
@@ -261,8 +261,8 @@ void test5()
  
 
     my_handlers handlers;
-    typedef mxmz::http_parser_base<handlers_interface> my_parser; 
-    my_parser  parser(my_parser::Request, handlers);
+    typedef mxmz::nodejs::http_parser_base<handlers_interface> my_parser; 
+    my_parser  parser(my_parser::mode_t::Request, handlers);
 
     const string s1 = "POST _/post_identity_body_world?q=search#hey HTTP/1.1\r\n"
                       "Accept: */*\r\n"
@@ -282,7 +282,7 @@ void test5()
 }
 
 struct  my_parser_pausing :   public base_handlers<my_parser_pausing>,
-                                public mxmz::http_parser_base<my_parser_pausing>
+                                public mxmz::nodejs::http_parser_base<my_parser_pausing>
 {
     int code;
     string  response_status;
@@ -324,7 +324,7 @@ struct  my_parser_pausing :   public base_handlers<my_parser_pausing>,
        
     }
 
-    using mxmz::http_parser_base<my_parser_pausing>::http_parser_base;
+    using mxmz::nodejs::http_parser_base<my_parser_pausing>::http_parser_base;
 };
 
 
@@ -361,7 +361,7 @@ using namespace mxmztest;
 
 void test6()
 {      
-    my_parser_pausing  parser(my_parser_pausing::Request);
+    my_parser_pausing  parser(my_parser_pausing::mode_t::Request);
 
     auto b1 = make_random_string( 1042 + rand_int() % 1042, 0, 256 );
     auto b2 = make_random_string( 1042 + rand_int() % 42, 0, 256  );
@@ -404,5 +404,7 @@ int main() {
     //cout << mxmztest::verbose << endl;
 }
 
-#include "detail/http_parser_impl.hxx"
+#include "wrapper/detail/http_parser_impl.hxx"
+#include "util/detail/pimpl.hxx"
+
 

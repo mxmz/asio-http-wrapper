@@ -18,7 +18,7 @@ using namespace std;
 
 using namespace boost;
 
-#include "stream_pipe.hxx"
+#include "util/stream_pipe.hxx"
 #include "test.h"
 
 typedef mxmz::stream_pipe_tmpl< asio::ip::tcp::socket,asio::posix::stream_descriptor> tcp_socket_pipe;

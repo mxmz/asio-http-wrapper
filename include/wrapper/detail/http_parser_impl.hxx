@@ -1,10 +1,10 @@
-#include "../../http-parser/http_parser.h"
+#include "../../../http-parser/http_parser.h"
 #include <iostream>
 #include <memory>
-#include "http_parser.hxx"
+#include "wrapper/http_parser.hxx"
 #include <cassert>
 
-namespace mxmz {
+namespace mxmz { namespace nodejs {
 
 using namespace std;
 
@@ -91,9 +91,9 @@ template <class Handlers>
 struct http_parser_base<Handlers>::detail   {
 
     static enum http_parser_type mode2type( mode_t mode ) {
-    return  mode == Request
+    return  mode == mode_t::Request
                ? HTTP_REQUEST
-               : (mode == Response ? HTTP_RESPONSE : HTTP_BOTH) ;
+               : (mode == mode_t::Response ? HTTP_RESPONSE : HTTP_BOTH) ;
 }
 
     typedef http_parser_base<Handlers> owner_type;
@@ -300,12 +300,13 @@ struct http_parser_base<Handlers>::detail   {
         return 0;
     }
 };
-}
+
+} } // namespace mxmz::nodejs
 
 namespace {
 }
 
-namespace mxmz {
+namespace mxmz { namespace nodejs {
 
 using namespace std;
 
@@ -384,6 +385,5 @@ http_parser_base<Handlers>::move_state() {
     return i->move_state();
 }
 
-}
+} } /// namespace mxmz::nodejs
 
-#include "detail/pimpl.hxx"

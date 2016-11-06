@@ -22,7 +22,7 @@ using namespace std;
 #include <stdio.h>
 
 
-#include "stream_pipe.hxx"
+#include "util/stream_pipe.hxx"
 
 
 using namespace boost;

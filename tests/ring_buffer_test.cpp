@@ -12,7 +12,7 @@ using namespace std;
 
 #include <fstream>
 
-#include "ring_buffer.hxx"
+#include "util/ring_buffer.hxx"
 
 #include "test.hxx"
 using namespace mxmztest;
