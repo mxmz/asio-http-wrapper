@@ -18,7 +18,7 @@ using namespace mxmztest;
 
 class handlers_interface {
 public:
-    virtual void on_body(const char* b, size_t l) = 0;
+    virtual void on_body_chunk(const char* b, size_t l) = 0;
     virtual void on_response_headers_complete( int code, const string& response_status ) = 0;
     virtual void on_request_headers_complete( const string& method, const string& request_url ) = 0;
     virtual void on_error(int http_errno, const char* msg) = 0;
@@ -37,7 +37,7 @@ struct base_handlers : public handlers_interface {
     pair<int,std::string> error;
 
 
-    void  on_body(const char* b, size_t l) {
+    void  on_body_chunk(const char* b, size_t l) {
         CERR << "body data: " << l << " ";
         CERR.write(b, l) << endl;
         body.append(b,l);
@@ -113,7 +113,7 @@ struct  my_handlers : public base_handlers<my_handlers> {
 
  
 template< class Parser >
-void readparse( const string&s, Parser& parser ) {
+void readparse( const string&s, Parser& parser, bool signal_eof = true ) {
     float bufsize = 1;
     const char* p = s.data();
     const char* end = p + s.size();
@@ -121,9 +121,10 @@ void readparse( const string&s, Parser& parser ) {
           long int len = size_t(bufsize); bufsize *= 1.266; bufsize += rand_int() % 10 ;
           len = min( len , (end-p) );
           CERR << "readparse: len " << len << endl;
-          parser.parse( p, len );
+          parser.parse( p, len,false );
           p += len;
     }
+    if ( signal_eof ) parser.parse( nullptr, 0, true );
 }
 
 
@@ -190,8 +191,9 @@ void test2()
     for( auto& s : chunks ) {
         auto current = move(parser);
         parser = move( my_parser_ptr(new my_parser(current->move_state(), handlers))  );
-        readparse(s,*parser);
+        readparse(s,*parser, false);
     }
+    readparse("",*parser, true);
     
 
     dump(handlers.headers);
@@ -317,7 +319,7 @@ struct  my_parser_pausing :   public base_handlers<my_parser_pausing>,
       CERR << __PRETTY_FUNCTION__ << endl;
       //pause();
     }
-    void  on_body(const char* b, size_t l) {
+    void  on_body_chunk(const char* b, size_t l) {
         CERR << __PRETTY_FUNCTION__ << " " << l << endl;
         body.append(b,l);
         //pause();
@@ -340,13 +342,13 @@ bool test_readparse_pausing( const string&s, my_parser_pausing& parser ) {
           long int len = size_t(bufsize); bufsize *= 1.666;
           len = min( len , (end-p) );
           CERR << "readparse: len " << len <<  " " << parser.paused() << endl;
-          long int consumed = parser.parse( p, len );
+          long int consumed = parser.parse( p, len, false );
           CERR << "readparse: consumed " << consumed <<  " " << parser.paused() << endl;
           if ( consumed < len ) {
               assert ( parser.paused() );
               assert( parsed + consumed == eoh - 1 ) ;
               parser.unpause();
-              consumed += parser.parse( p + consumed, len - consumed );
+              consumed += parser.parse( p + consumed, len - consumed, false );
               assert( consumed == len );
               did_pause = true;
           }

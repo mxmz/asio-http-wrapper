@@ -139,37 +139,37 @@ public:
     }
 
     void on_header_line( std::string&& name, string&& value )  {
-        CERR << __FUNCTION__ << endl;
+//        CERR << __FUNCTION__ << endl;
         state.hrh_builder.add_header( move(name), move(value) );
     }
     void  on_request_headers_complete( string&& method, string&& request_url ) {
-        CERR << __FUNCTION__ << endl;
+//        CERR << __FUNCTION__ << endl;
         http_request_header_ptr h(  
             move(  state.hrh_builder
                 .set_method(move(method))
                 .set_request_uri(move(request_url))
                 .build() ) );
-        handlers->notify_header(move(h));        
+        handlers->handle_header(move(h));        
         this->pause();     
     };
 
     void on_error(int http_errno, const char* msg)
     {
-        CERR << "Error: " << http_errno << " " << msg << endl;
+//        CERR << "Error: " << http_errno << " " << msg << endl;
         std::abort();
     }
     void on_message_complete()
     {
         this->pause();     
         state.complete = true;
-        CERR << __FUNCTION__ << endl;
+//      CERR << __FUNCTION__ << endl;
         flush();
     }
 
     void on_message_begin()
     {     state.complete = false;
 //        CERR << "Message begin" << endl;
-        CERR << __FUNCTION__ << endl;
+//        CERR << __FUNCTION__ << endl;
     }
     
 
@@ -178,12 +178,12 @@ public:
     }
 
         
-    void on_body( const char* p, size_t l) {
-                CERR << __FUNCTION__ << endl;
+    void on_body_chunk( const char* p, size_t l) {
+ //               CERR << __FUNCTION__ << endl;
             flush();
             if ( state.body_buffered.empty() ) {
                 size_t consumed = handlers->handle_body_chunk( p, l );
-                CERR << "on_body: buffering " << l - consumed << endl;
+ //               CERR << "on_body_chunk: buffering " << l - consumed << endl;
                 state.body_buffered.append(p + consumed, l - consumed );
             } else {
                 state.body_buffered.append(p , l );
@@ -196,16 +196,16 @@ public:
     typedef std::pair<size_t,size_t>    flush_info_t;
 
    flush_info_t flush() {
-       CERR << "flush" << endl;
+//       CERR << "flush" << endl;
        size_t flushed = 0;
         if ( not state.body_buffered.empty()  ) {
             auto data = state.body_buffered.data();
             flushed = handlers->handle_body_chunk( buffer_cast<const char*>(data), buffer_size(data) );
             state.body_buffered.consume(flushed);
         }
-        CERR << "flush " <<  buffer_size( state.body_buffered.data()) << " " << state.body_buffered.empty() << " " << state.complete<<   endl;
+ //       CERR << "flush " <<  buffer_size( state.body_buffered.data()) << " " << state.body_buffered.empty() << " " << state.complete<<   endl;
         if ( state.complete and state.body_buffered.empty() ) {
-            handlers->notify_body_end();
+            handlers->handle_body_end();
             state.complete = false;
         }
         //return buffer_size( state.body_buffered.data());
@@ -215,15 +215,15 @@ public:
    bool buffering() const {
        return buffer_size(state.body_buffered.data()) > 0;
    }
-   inline size_t parse(const char* buffer, size_t len)
+   inline size_t parse(const char* buffer, size_t len, bool eof )
     {
         if ( buffering() ) {
             flush();
             return 0;
         }
-        if ( len ) {
+        if ( len || eof ) {
             this->unpause();
-            return this->base_t::parse(buffer, len);
+            return this->base_t::parse(buffer,len,eof);
         } else {
             return 0;
         }
@@ -277,9 +277,9 @@ auto buffering_request_http_parser<Handlers,PIB,RHB>::flush() -> flush_info_t
 }
 
 template <class Handlers, template<class> class PIB, class RHB>
-size_t buffering_request_http_parser<Handlers,PIB,RHB>::parse(const char* buffer, size_t len)
+size_t buffering_request_http_parser<Handlers,PIB,RHB>::parse(const char* buffer, size_t len, bool eof)
 {
-    return i->parse(buffer, len);
+    return i->parse(buffer,len,eof);
 }
 
 template <class Handlers, template<class> class PIB, class RHB>

@@ -40,9 +40,9 @@ class http_request_header_builder;
 
 /*
     Handlers must implement:
-    -   void notify_header( http_request_header_ptr h )
+    -   void   handle_header( http_request_header_ptr h )
     -   size_t handle_body_chunk( const char* p , size_t l )
-    -   void notify_body_end()
+    -   void   handle_body_end()
 
 */
 template< class Handlers, 
@@ -64,7 +64,7 @@ class buffering_request_http_parser  {
         bool good()   const ;
 
         void reset();
-        size_t parse(const char* buffer, size_t len );
+        size_t parse(const char* buffer, size_t len, bool eof );
 
         typedef std::pair<size_t,size_t>    flush_info_t;
         
@@ -73,20 +73,23 @@ class buffering_request_http_parser  {
 };
   
 /*
-    usage:
+    example:
 
-      typedef mxmz::connection_tmpl<mxmz::body_reader> connection;
+     template< class Handlers >
+       using default_parser_base = mxmz::nodejs::http_parser_base;
+
+      typedef mxmz::connection_tmpl<default_parser_base> connection;
 
       acceptor.async_accept( socket, [ &socket ](boost::system::error_code ec) {
           if ( ! ec ) {
                 auto conn = make_shared<connection>( move(socket), ... );
                 conn->async_read_request( [conn]( boost::system::error_code ec, 
-                                                     connection::http_request_header_ptr head,  
-                                                     connection::body_reader_ptr body  ) {
+                                                     connection::http_request_header_ptr head  
+                                                     ) {
                     CERR << ec <<  endl;
                         CERR << head->method << endl;
                         CERR << head->url << endl;
-
+                        auto body = conn->make_body_reader();    
                         body->async_read_some( ... 
                         // ....
 
@@ -138,10 +141,10 @@ class connection_tmpl:
 
     size_t handle_body_chunk( const char* p , size_t l ) {
         return body_handler->handle_body_chunk(p,l);
-    }
+        }
 
-    void notify_body_end() {
-            body_handler->notify_body_end();
+    void   handle_body_end() {
+            body_handler->  handle_body_end();
     }
     void bind( body_observer_t* p) {
         body_handler = p;
@@ -164,7 +167,7 @@ class connection_tmpl:
             
             auto toread = rb.data();
 //            CERR << "connection::async_read_some parsing  " << buffer_size(toread) << endl;
-            size_t consumed = this->parse( buffer_cast<const char*>(toread), buffer_size(toread)  );
+            size_t consumed = this->parse( buffer_cast<const char*>(toread), buffer_size(toread), false  );
 //            CERR << "connection::async_read_some parsed: " << consumed << " " << this->paused()  << " " <<  ec <<  " " << buffer_size(toread) << " " << this->buffering() << endl;
             rb.consume(consumed);
             if ( this->buffering() ) { // still something to flush
@@ -195,7 +198,7 @@ class connection_tmpl:
 
     std::unique_ptr< const http_request_header> request_ready;
 
-    void notify_header( std::unique_ptr< const http_request_header> h ) {
+    void handle_header( std::unique_ptr< const http_request_header> h ) {
         request_ready = move(h);
     }    
 
@@ -258,9 +261,9 @@ class body_reader_tmpl :
         current_buffer = current_buffer + used;
 //        CERR << "handle_body_chunk: used " << used << endl;
         return used;
-    }
+      }
 
-    void notify_body_end() {
+    void   handle_body_end() {
 //            CERR << __FUNCTION__ << endl;
             eof = true;
     }

@@ -229,7 +229,7 @@ struct http_parser_base<Handlers>::detail   {
         // CERR << __FUNCTION__ << ": ";
         // cerr.write(buf, len) << endl;
 
-        get_self(p).handlers->on_body(buf, len);
+        get_self(p).handlers->on_body_chunk(buf, len);
 
         return 0;
     }
@@ -374,9 +374,13 @@ void http_parser_base<Handlers>::reset()
     return i->reset();
 }
 template <class Handlers>
-size_t http_parser_base<Handlers>::parse(const char* buffer, size_t len)
+size_t http_parser_base<Handlers>::parse(const char* buffer, size_t len, bool eof )
 {
-    return i->parse(buffer, len);
+    size_t rc = i->parse(buffer, len);
+    if ( eof && len ) {
+        i->parse("", 0);
+    }
+    return rc;
 }
 
 template <class Handlers>

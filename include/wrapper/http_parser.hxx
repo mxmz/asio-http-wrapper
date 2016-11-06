@@ -13,14 +13,14 @@ class http_parser_state;
 
     -   on_error( int , string )
     -   on_header_line( string, string )
-    -   on_body( const char* , size_t )
+    -   on_body_chunk( const char* , size_t )
     -   on_response_headers_complete( status, description )
     -   on_request_headers_complete( method, request_url )
     -   on_message_begin()
     -   on_message_complete()    
 */
 
-enum class parser_mode {
+enum class http_parser_mode {
             Request,
             Response,
             Both
@@ -32,7 +32,7 @@ class http_parser_base {
     pimpl<detail,330,8> i;
 
 public:
-    typedef parser_mode mode_t ;
+    typedef http_parser_mode mode_t ;
                 
     http_parser_base( mode_t, Handlers* );
     http_parser_base( mode_t, Handlers& ) ;
@@ -51,7 +51,7 @@ public:
     bool good()   const ;
 
     void reset();
-    size_t parse(const char* buffer, size_t len );
+    size_t parse(const char* buffer, size_t len, bool eof );
 
     http_parser_state&& move_state();
 };

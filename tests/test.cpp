@@ -17,7 +17,7 @@ Type getenv(const char* name, Type dflt = Type() ) {
 }
 
 const bool verbose = getenv<bool>("VERBOSE");
-const int  max_time = getenv<int>("MAX_TIME", 1 );
+const int  max_time = getenv<int>("MAX_TIME", 2 );
 const int  static_seed = getenv<int>("STATIC_SEED", -1 );
 
 std::string make_random_string(int c, int from,  int to ) {

@@ -51,15 +51,15 @@ class parser  {
     typedef shared_ptr<request_parser_t> request_parser_ptr;
     public:
 
-    request_parser_ptr prs;
+    request_parser_t prs;
 
-    parser() : prs( new request_parser_t(this, 1000) ) {
+    parser() : prs( this, 1000 ) {
 
     }
 
     std::unique_ptr<const http_request_header> header;
 
-    void notify_header( std::unique_ptr<const http_request_header> h ) {
+    void handle_header( std::unique_ptr<const http_request_header> h ) {
             header = move(h);
     } 
 
@@ -76,19 +76,19 @@ class parser  {
         return rl; 
     }
 
-    void notify_body_end() {
+    void handle_body_end() {
             finished = true;
     }
 
-    size_t parse(  const char* p , size_t l ) {
-        return prs->parse(p,l);
+    size_t parse(  const char* p , size_t l, bool eof ) {
+        return prs.parse(p,l,eof);
     }
     size_t paused() const {
-        return prs->paused();
+        return prs.paused();
     }
 
     void flush()  {
-        prs->flush();
+        prs.flush();
     }
  
     
@@ -127,7 +127,7 @@ void test1() {
           long int len = size_t( bufsize + 1 ); bufsize *= 1 + float(rand_int()%10 - 2 )/10;
           len = min( len , (end-p) );
           CERR << "paused " << prs.paused() << endl;
-          long int consumed = prs.parse( p, len );
+          long int consumed = prs.parse( p, len, false );
           CERR << "len " << len << " consumed " << consumed << endl;
           parsed += consumed;
           p += consumed;
@@ -150,7 +150,7 @@ void test1() {
           long int len = size_t( bufsize + 1 ); bufsize *= 1 + float(rand_int()%10 - 4 )/10;
           len = min( len , (end-p) );
           CERR << "paused " << prs.paused() << endl;
-          long int consumed = prs.parse( p, len );
+          long int consumed = prs.parse( p, len, false );
           CERR << "len " << len << " consumed " << consumed <<  " paused " << prs.paused() << endl;
     
           p += consumed;
@@ -469,9 +469,9 @@ void test3mok() {
 int main() {
 
     RUN( test1, verbose ? 10: 1000 );
-    RUN( test2, verbose ? 10: 3000 );
-    RUN( test3, verbose ? 10: 3000 );
-    RUN( test3mok, verbose ? 10: 3000 );  
+    RUN( test2, verbose ? 10: 1000 );
+    RUN( test3, verbose ? 10: 1000 );
+    RUN( test3mok, verbose ? 10: 1000 );  
 }
 
 
