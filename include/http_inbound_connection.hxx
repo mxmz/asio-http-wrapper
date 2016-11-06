@@ -98,18 +98,27 @@ class buffering_request_http_parser  {
       }
 */
 
+template < class Connection >
+class body_reader_tmpl ;
 
 
-template< class BodyObserver, template< class H > class ParserImplBase, class Socket =  ip::tcp::socket >
+template<   template< class H > class ParserImplBase, 
+            class Socket =  ip::tcp::socket, 
+            template<class C> class BodyReaderTmpl = body_reader_tmpl  >
 class connection_tmpl: 
-    public  std::enable_shared_from_this< connection_tmpl<BodyObserver,ParserImplBase, Socket> >, 
-    public  mxmz::buffering_request_http_parser< connection_tmpl<BodyObserver,ParserImplBase,Socket>,ParserImplBase > {
+    public  std::enable_shared_from_this< connection_tmpl<ParserImplBase, Socket> >, 
+    public  mxmz::buffering_request_http_parser< connection_tmpl<ParserImplBase,Socket>,ParserImplBase > {
 
-    typedef mxmz::buffering_request_http_parser<connection_tmpl<BodyObserver,ParserImplBase,Socket>,ParserImplBase> base_t;
+    typedef connection_tmpl<ParserImplBase,Socket> this_t;
+
+    typedef mxmz::buffering_request_http_parser<this_t,ParserImplBase> base_t;
+    
+    typedef BodyReaderTmpl<this_t>    body_observer_t;
 
     Socket              socket;
     mxmz::ring_buffer   rb;
-    BodyObserver*       body_handler;
+    
+    body_observer_t*       body_handler;
     size_t  bytes_transferred = 0;
 
     public:
@@ -134,7 +143,7 @@ class connection_tmpl:
     void notify_body_end() {
             body_handler->notify_body_end();
     }
-    void bind( BodyObserver * p) {
+    void bind( body_observer_t* p) {
         body_handler = p;
     }
 
@@ -178,7 +187,11 @@ class connection_tmpl:
 
 
     typedef std::unique_ptr<const http_request_header>      http_request_header_ptr;
-    typedef shared_ptr< BodyObserver >                      body_reader_ptr ;
+    typedef shared_ptr< body_observer_t >                   body_reader_ptr ;
+
+    auto make_body_reader() {
+        return body_reader_ptr( new body_observer_t(this->shared_from_this()));
+    }
 
     std::unique_ptr< const http_request_header> request_ready;
 
@@ -205,11 +218,11 @@ class connection_tmpl:
 };
 
 
-template < template< class H > class ParserImplBase, class Socket  = ip::tcp::socket >
+template < class Connection >
 class body_reader_tmpl : 
-    public std::enable_shared_from_this< body_reader_tmpl<ParserImplBase,Socket> >  {
+    public std::enable_shared_from_this< body_reader_tmpl<Connection> >  {
 
-    typedef shared_ptr< connection_tmpl< body_reader_tmpl<ParserImplBase,Socket>,ParserImplBase, Socket > > conn_ptr;
+    typedef shared_ptr< Connection > conn_ptr;
 
     conn_ptr          cnn;
     
@@ -219,15 +232,19 @@ class body_reader_tmpl :
         return cnn;
     }
 
-    body_reader_tmpl()  {
+    body_reader_tmpl() = delete;    
 
-    }
+    private:
+    friend Connection;
+
     body_reader_tmpl( conn_ptr p ) :
         cnn(move(p)),
         current_buffer((char*)"",0) 
         {
             cnn->bind(this);
         }
+
+    public:    
     ~body_reader_tmpl() {
         cnn->bind(nullptr);
     }
