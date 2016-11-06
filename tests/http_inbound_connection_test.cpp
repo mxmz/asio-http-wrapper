@@ -207,7 +207,7 @@ int srv_port = 60000 + (rand_int()%5000);
 
 auto test_server(io_service& ios, string s1) {
 
-    typedef connection_tmpl<mxmz::body_reader_tmpl<nodejs::http_parser_base>,nodejs::http_parser_base > connection;
+    typedef connection_tmpl<nodejs::http_parser_base > connection;
     typedef test_reader_tmpl<connection> test_reader;
 
     size_t bodybuffer_size = rand_int() % 2048 + 10;
@@ -232,9 +232,7 @@ auto test_server(io_service& ios, string s1) {
     std::string s;
 
     
-    typedef body_reader_tmpl<nodejs::http_parser_base>  body_reader_t;
-
-    typedef connection_tmpl< body_reader_t,nodejs::http_parser_base > conn_t;
+    typedef connection_tmpl< nodejs::http_parser_base > conn_t;
 
     
     auto tr = std::make_shared<test_reader>(testreader_readbuffer_size);
@@ -254,7 +252,7 @@ auto test_server(io_service& ios, string s1) {
                     CERR << ec <<  endl;
                         CERR << h->method << endl;
                         CERR << h->url << endl;
-                        auto br  = std::make_shared<body_reader_t>(conn);
+                        auto br  = conn->make_body_reader();
                         tr->s = br;
                         tr->h = move(h);
                         tr->start();
@@ -322,10 +320,10 @@ auto test_socketmock(io_service& ios, string s1) {
            
     mock_asio_socket    socket(  ios, move(s1) );
     
-    typedef body_reader_tmpl<nodejs::http_parser_base,mock_asio_socket>  body_reader_t;
+    
 
-    typedef connection_tmpl< body_reader_t, nodejs::http_parser_base, mock_asio_socket > conn_t;
-    typedef test_reader_tmpl<conn_t> test_reader;
+    typedef connection_tmpl<nodejs::http_parser_base,mock_asio_socket> conn_t;
+    typedef test_reader_tmpl<conn_t>  test_reader;
 
     auto tr = std::make_shared<test_reader>(testreader_readbuffer_size);
     auto srv_finished_future = tr->finished.get_future();
@@ -337,7 +335,7 @@ auto test_socketmock(io_service& ios, string s1) {
                     CERR << ec <<  endl;
                         CERR << h->method << endl;
                         CERR << h->url << endl;
-                        auto br  = std::make_shared<body_reader_t>(conn);
+                        auto br  = conn->make_body_reader();
                         tr->s = br;
                         tr->h = move(h);
                         tr->start();
