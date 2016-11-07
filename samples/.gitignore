@@ -1,0 +1,12 @@
+core
+Testing
+CTestTestfile.cmake
+fileserver
+*.o
+*.swp
+.temp
+CMakeFiles/
+Makefile
+CMakeCache.txt
+cmake_install.cmake
+fileserver

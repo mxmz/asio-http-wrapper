@@ -1,4 +1,4 @@
-PROJECT(samples)
+PROJECT(tests)
 cmake_minimum_required(VERSION 2.4)
 
 ADD_DEFINITIONS(-D_REENTRANT )
