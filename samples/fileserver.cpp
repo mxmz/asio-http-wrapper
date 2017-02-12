@@ -65,17 +65,19 @@ int main() {
                 CERR << "new connnection" << endl;
                
                 auto conn = make_shared<conn_t>( move(socket), bodybuffer_size, readbuffer_size ) ;
-                conn->async_wait_request( [c=move(conn)]( boost::system::error_code ec, 
+                conn->async_wait_request( [conn]( boost::system::error_code ec, 
                                                      conn_t::http_request_header_ptr h  
                                                      ) {
                         CERR << ec <<  endl;
                         CERR << h->method << endl;
                         CERR << h->url << endl;
-                        auto br  = c->make_body_reader();
+                        auto br  = conn->make_body_reader();
+
+                        // TODO ...
 
                 } );
             }
-            start_accept();
+      //      start_accept();
         } );
     }; 
     
