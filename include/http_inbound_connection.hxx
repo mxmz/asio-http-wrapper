@@ -126,6 +126,10 @@ class connection_tmpl:
 
     public:
 
+    auto& get_io_service() {
+        return socket.get_io_service();
+    }
+
     auto      buffered_data ()  {
             return rb.data() ;
     }
@@ -162,7 +166,7 @@ class connection_tmpl:
          auto self( this->shared_from_this() );
          auto processData = [this,self, handler]( boost::system::error_code ec, std::size_t bytes ) {
             bytes_transferred += bytes;
-//            CERR << "<<<<<<<<<<<<<<<<<<<<<<<< connection socket.async_read_some bytes: "<< ec  << " " << bytes <<  " " << bytes_transferred << endl;
+//          CERR << "<<<<<<<<<<<<<<<<<<<<<<<< connection socket.async_read_some bytes: "<< ec  << " " << bytes <<  " " << bytes_transferred << endl;
             rb.commit(bytes);
             
             auto toread = rb.data();
@@ -237,6 +241,10 @@ class body_reader_tmpl :
 
     body_reader_tmpl() = delete;    
 
+    auto& get_io_service() {
+        return cnn->get_io_service();
+    }
+
     private:
     friend Connection;
 
@@ -272,7 +280,7 @@ class body_reader_tmpl :
     void async_read_some(
         const boost::asio::mutable_buffer& buffer,
             ReadHandler handler) {
-//                    CERR << "body_reader async_read_some eof  " << eof << endl;
+                    //CERR << "body_reader async_read_some eof  " << eof << endl;
                     if ( eof ) {
                             cnn->post( [handler]() {
                                   handler(boost::asio::error::eof, 0);      
@@ -283,7 +291,7 @@ class body_reader_tmpl :
                         auto self( this->shared_from_this() );
                         cnn->async_read( [this,self,origlen,handler](boost::system::error_code ec) {
                             size_t len = origlen - buffer_size(current_buffer);
-  //                          CERR << "body_reader async_read_some lambda  " << ec << endl;
+                            //CERR << "body_reader async_read_some lambda  " << ec << " " << len << endl;
                             if ( eof ) ec = boost::asio::error::eof;  
                             if ( ec ) {
                                 handler( ec,  len  );

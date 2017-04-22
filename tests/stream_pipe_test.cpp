@@ -21,13 +21,13 @@ using namespace std;
 #include <fstream>
 #include <stdio.h>
 
-
+#include "test.hxx"
 #include "util/stream_pipe.hxx"
 
 
 using namespace boost;
 
-#include "test.hxx"
+
 using namespace mxmztest;
 
 

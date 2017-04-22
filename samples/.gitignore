@@ -2,6 +2,7 @@ core
 Testing
 CTestTestfile.cmake
 fileserver
+fileserver_example
 *.o
 *.swp
 .temp

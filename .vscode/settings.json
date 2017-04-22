@@ -9,9 +9,13 @@
         "tests/*_test": true,
         "*/*.cmake": true,
         "*/CMakeCache.txt": true,
-        "tests/Makefile": true,
+        "*/Makefile": true,
+        "*/CMakeFiles": true,
         "**/.git*": true,
         "**/core": true,
+        "**/.temp": true,
+        "**/*_test": true,
+        "**/*_example": true
         //"**/CMakeFiles/**" :  true
     }
 }

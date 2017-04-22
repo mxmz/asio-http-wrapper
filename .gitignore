@@ -1,8 +1,10 @@
 *.o
 *.swp
 tests/.temp
-tests/CMakeFiles/
-tests/Makefile
-tests/CMakeCache.txt
-tests/buffpipe1
-tests/cmake_install.cmake
+**/CMakeFiles/
+**/Makefile
+**/CMakeCache.txt
+**/cmake_install.cmake
+**/*_test
+**/*_test.sh
+**/core

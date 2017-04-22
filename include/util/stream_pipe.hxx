@@ -12,7 +12,7 @@
 #include <boost/asio/streambuf.hpp>
 
 #include "ring_buffer.hxx"
-#include "test.h"
+
 
 int debug_count_read = 0;
 int debug_count_write = 0;
@@ -29,6 +29,7 @@ template< class SrcStream,
         class Strand = boost::asio::io_service::strand >
 class stream_pipe_tmpl: public std::enable_shared_from_this<stream_pipe_tmpl<SrcStream,DstStream,Strand>>
 {
+    public:
     static bool debug;
 
 public:
@@ -77,8 +78,8 @@ private:
             auto _this = this->shared_from_this();
             auto handler = strand_.wrap([this,_this ](const boost::system::error_code& ec, std::size_t bytes_transferred)
             {
-                CERR << "read handler" << endl;
-                if ( not ec )
+                CERR << "read handler " << ec << " " << bytes_transferred << endl;
+                if ( bytes_transferred )
                 {
                    // auto bufs = sbuf_.prepare();
                    // auto rv = src_stream_.read_some(bufs, read_ec_ );
@@ -88,11 +89,8 @@ private:
                    // sbuf_.commit(rv);
                     sbuf_.commit(bytes_transferred);
                     debug_count_read += bytes_transferred;
-                    reading_ = false;
-                    activate();
-
+                 
                 }
-                else
                 {
                     read_ec_ = ec;
                     reading_ = false;
@@ -118,7 +116,7 @@ private:
             auto _this = this->shared_from_this();
             auto handler = strand_.wrap([this,_this ](const boost::system::error_code& ec, std::size_t bytes_transferred)
             {
-                CERR << "write handler" << endl;
+                CERR << "write handler " << ec << " " << bytes_transferred << endl;
                 if ( not ec )
                 {
                     //auto bufs = sbuf_.data();
