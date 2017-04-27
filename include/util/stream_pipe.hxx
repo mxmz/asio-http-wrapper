@@ -1,5 +1,6 @@
 #ifndef stream_pipe_9384759387593845793845793485739485739485739
 #define stream_pipe_9384759387593845793845793485739485739485739
+
 #include <iostream>
 #include <chrono>
 #include <queue>
