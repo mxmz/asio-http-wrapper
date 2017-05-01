@@ -291,7 +291,48 @@ bool buffering_request_http_parser<Handlers,PIB,RHB>::buffering() const
 
 
 
+//  **************************************** response   **************************
 
+
+
+class http_response_header_builder {
+        map< string, string >           _headers;
+        http_response_header::status_t  _status;
+        public:
+        http_response_header_builder& set_status ( size_t code, string&& msg ) {
+            _status = move(http_response_header::status_t(code, move(msg)) );
+            return *this;
+        }     
+        http_response_header_builder& add_header ( string&& k, string&& v ) {
+            _headers[k] = move(v);
+            return *this;
+        }
+
+        http_response_header_ptr build() {
+            http_response_header_ptr r( 
+                    new const http_response_header{move(_status),  move(_headers)} 
+
+                );
+            _status = http_response_header::status_t(); _headers.clear();
+            return r;
+        }
+        bool ready () const {
+            return _status != http_response_header::status_t();
+        }
+
+        typedef http_response_header_ptr type_ptr;
+
+};
+
+const string& http_response_header::operator[]( const string& k) const {
+        auto found = headers.find(k);
+        if ( found != headers.end() ) {
+            return found->second;
+        } else {
+            static string empty;
+            return empty;
+        }
+}
 
 
 

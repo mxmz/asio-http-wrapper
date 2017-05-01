@@ -35,9 +35,28 @@ struct http_request_header {
             {}
 };
 
+
 typedef std::unique_ptr<const http_request_header>  http_request_header_ptr;
 
 class http_request_header_builder;
+
+struct http_response_header {
+    typedef std::pair<int,string>  status_t; 
+    status_t status;
+    map<string,string> headers;
+    const string& operator[]( const string& k) const;
+    
+    http_response_header( status_t&& s, map<string,string>&& h ) :
+            status( move(s)), 
+            headers( move(h)) 
+            {}
+};
+
+typedef std::unique_ptr<const http_response_header>  http_response_header_ptr;
+
+class http_response_header_builder;
+
+
 
 /*
     Handlers must implement:
@@ -79,7 +98,7 @@ class buffering_request_http_parser  {
      template< class Handlers >
        using default_parser_base = mxmz::nodejs::http_parser_base;
 
-      typedef mxmz::connection_tmpl<default_parser_base> connection;
+      typedef mxmz::inbound_connection_tmpl<default_parser_base> connection;
 
       acceptor.async_accept( socket, [ &socket ](boost::system::error_code ec) {
           if ( ! ec ) {
@@ -109,15 +128,17 @@ class body_reader_tmpl ;
 template<   template< class H > class ParserImplBase, 
             class Socket =  ip::tcp::socket, 
             template<class C> class BodyReaderTmpl = body_reader_tmpl  >
-class connection_tmpl: 
-    public  std::enable_shared_from_this< connection_tmpl<ParserImplBase, Socket> >, 
-    public  mxmz::buffering_request_http_parser< connection_tmpl<ParserImplBase,Socket>,ParserImplBase > {
+class inbound_connection_tmpl: 
+    public  std::enable_shared_from_this< inbound_connection_tmpl<ParserImplBase, Socket> >, 
+    public  mxmz::buffering_request_http_parser< inbound_connection_tmpl<ParserImplBase,Socket>,ParserImplBase > {
 
-    typedef connection_tmpl<ParserImplBase,Socket> this_t;
+    typedef inbound_connection_tmpl<ParserImplBase,Socket> this_t;
 
     typedef mxmz::buffering_request_http_parser<this_t,ParserImplBase> base_t;
     
     typedef BodyReaderTmpl<this_t>    body_observer_t;
+        
+    long int connection_id_ = 0;
 
     Socket              socket;
     mxmz::ring_buffer   rb;
@@ -135,18 +156,34 @@ class connection_tmpl:
         return socket;
     }
 
+    long int connection_id () const {
+        return (long int)connection_id_;
+    }
+
     auto      buffered_data ()  {
             return rb.data() ;
     }
 
-    connection_tmpl ( Socket&& s, size_t buffer_threshold, size_t buffer_size) :
+    inbound_connection_tmpl ( Socket&& s, size_t buffer_threshold, size_t buffer_size) :
                 base_t(buffer_threshold),
                 socket( move(s)), 
                 rb( buffer_size ),
                 body_handler(nullptr) {
+                CERR << connection_id() << " open" << endl;           
     }
 
-
+    inbound_connection_tmpl ( long int id, Socket&& s, size_t buffer_threshold, size_t buffer_size) :
+                base_t(buffer_threshold),
+                connection_id_(id),
+                socket( move(s)), 
+                rb( buffer_size ),
+                body_handler(nullptr) {
+                CERR << connection_id() << " open" << endl;           
+    }
+    ~inbound_connection_tmpl() {
+        CERR << connection_id() << " closed  " << last_ec << " " << bytes_transferred <<  endl;
+    }
+    boost::system::error_code last_ec;
 
     size_t handle_body_chunk( const char* p , size_t l ) {
         return body_handler->handle_body_chunk(p,l);
@@ -170,14 +207,16 @@ class connection_tmpl:
      void async_read(ReadHandler handler) {
          auto self( this->shared_from_this() );
          auto processData = [this,self, handler]( boost::system::error_code ec, std::size_t bytes ) {
+
+            last_ec = ec; 
             bytes_transferred += bytes;
-//          CERR << "<<<<<<<<<<<<<<<<<<<<<<<< connection socket.async_read_some bytes: "<< ec  << " " << bytes <<  " " << bytes_transferred << endl;
+         CERR << connection_id() << " <<<<<<<<<<<<<<<<<<<<<<<< connection socket.async_read_some bytes: "<< ec  << " " << bytes <<  " " << bytes_transferred << endl;
             rb.commit(bytes);
             
             auto toread = rb.data();
-//            CERR << "connection::async_read_some parsing  " << buffer_size(toread) << endl;
+           CERR << connection_id() << " connection::async_read_some parsing  " << buffer_size(toread) << endl;
             size_t consumed = this->parse( buffer_cast<const char*>(toread), buffer_size(toread), false  );
-//            CERR << "connection::async_read_some parsed: " << consumed << " " << this->paused()  << " " <<  ec <<  " " << buffer_size(toread) << " " << this->buffering() << endl;
+           CERR << connection_id() << " connection::async_read_some parsed: " << consumed << " " << this->paused()  << " " <<  ec <<  " " << buffer_size(toread) << " " << this->buffering() << endl;
             rb.consume(consumed);
             if ( this->buffering() ) { // still something to flush
                     ec = boost::system::error_code() ;
@@ -186,7 +225,7 @@ class connection_tmpl:
         };
 
         if ( rb.readable() or this->buffering() ) {
-//            CERR << "async_read: start: unparsed stuff" << endl;
+            CERR << connection_id()<< " async_read: start: unparsed stuff" << endl;
             socket.get_io_service().post([processData]() {
                 processData( boost::system::error_code(), 0  );
             });

@@ -164,7 +164,7 @@ void test1() {
 
 }
 
-using mxmz::connection_tmpl;
+using mxmz::inbound_connection_tmpl;
 using namespace std;
 
 /* ---------------------------------------------------------- body_reader ----------------- */
@@ -207,7 +207,7 @@ int srv_port = 60000 + (rand_int()%5000);
 
 auto test_server(io_service& ios, string s1) {
 
-    typedef connection_tmpl<nodejs::http_parser_base > connection;
+    typedef inbound_connection_tmpl<nodejs::http_parser_base > connection;
     typedef test_reader_tmpl<connection> test_reader;
 
     size_t bodybuffer_size = rand_int() % 2048 + 10;
@@ -232,7 +232,7 @@ auto test_server(io_service& ios, string s1) {
     std::string s;
 
     
-    typedef connection_tmpl< nodejs::http_parser_base > conn_t;
+    typedef inbound_connection_tmpl< nodejs::http_parser_base > conn_t;
 
     
     auto tr = std::make_shared<test_reader>(testreader_readbuffer_size);
@@ -322,7 +322,7 @@ auto test_socketmock(io_service& ios, string s1) {
     
     
 
-    typedef connection_tmpl<nodejs::http_parser_base,mock_asio_socket> conn_t;
+    typedef inbound_connection_tmpl<nodejs::http_parser_base,mock_asio_socket> conn_t;
     typedef test_reader_tmpl<conn_t>  test_reader;
 
     auto tr = std::make_shared<test_reader>(testreader_readbuffer_size);
