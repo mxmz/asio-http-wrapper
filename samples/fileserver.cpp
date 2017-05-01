@@ -15,6 +15,9 @@
 
 #include "util/stream_pipe.hxx"
 
+#include <boost/asio/write.hpp>
+#include <boost/filesystem.hpp>
+
 using namespace boost::asio;
 using boost::asio::mutable_buffers_1;
 using boost::asio::buffer_cast;
@@ -101,14 +104,46 @@ int main()
                     auto pipe = mxmz::make_stream_pipe(*br, *drop, 4567);
                     pipe->debug = true;
 
-                    pipe->run( [drop,br](const boost::system::error_code& read_ec, const boost::system::error_code& write_ec) {
-                        CERR << read_ec.message() << endl;
-                        CERR << write_ec.message() << endl;
+                    auto head = shared_ptr<const mxmz::http_request_header>(h.release()) ;
+
+
+                    pipe->run( [drop,br,head] (const boost::system::error_code& read_ec, const boost::system::error_code& write_ec) mutable  {
+                        CERR << read_ec << " " << read_ec.message() << endl;
+                        CERR << write_ec << " "<< write_ec.message() << endl;
+
+                        if ( not read_ec || read_ec == boost::asio::error::eof) {
+                                CERR << "start respond" << endl;
+
+                                boost::filesystem::path p(".");
+                                p += head->url;
+                                
+                                long len = boost::filesystem::file_size(p);                                                                    
+
+
+                                const std::string reply = 
+                                    "HTTP/1.0 OK Found\r\n"
+                                    "Content-Length: 15\r\r"
+                                    "Content-Type: text/html\r\r"
+                                    "\r\n"
+                                    "<html></html>\r\n";
+
+                                auto& socket = br->connection()->get_socket();
+                                //using boost::asio::const_buffers_1;
+                                boost::asio::async_write( socket, 
+                                    const_buffers_1 (reply.data(), reply.size()),
+                                    []( boost::system::error_code ec, std::size_t bytes ) {
+                                    
+                                    
+                                    
+                                    } );
+
+                        }       
+            
                   }  );
                   
                 });
             }
-            //      start_accept();
+            start_accept();
         });
     };
 

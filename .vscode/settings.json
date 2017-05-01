@@ -17,5 +17,9 @@
         "**/*_test": true,
         "**/*_example": true
         //"**/CMakeFiles/**" :  true
+    },
+    "files.associations": {
+        "system_error": "cpp",
+        "*.ipp": "cpp"
     }
 }

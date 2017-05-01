@@ -8,6 +8,7 @@
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/strand.hpp>
 #include <boost/asio/ip/tcp.hpp>
+
 #include "util/ring_buffer.hxx"
 #include "util/pimpl.h"
 
@@ -130,6 +131,10 @@ class connection_tmpl:
         return socket.get_io_service();
     }
 
+    auto& get_socket() {
+        return socket;
+    }
+
     auto      buffered_data ()  {
             return rb.data() ;
     }
@@ -220,6 +225,8 @@ class connection_tmpl:
             }
         } );
     }
+
+
 
 
 };

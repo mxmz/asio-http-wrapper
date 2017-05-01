@@ -8,7 +8,7 @@ LINK_DIRECTORIES( ${LINK_DIRECTORIES} )
 
 ADD_EXECUTABLE ( fileserver_example                  fileserver.cpp ../http-parser/http_parser.c ../tests/test.cpp )
 
-TARGET_LINK_LIBRARIES( fileserver_example            -lboost_system -pthread )
+TARGET_LINK_LIBRARIES( fileserver_example            -lboost_system -pthread -lboost_filesystem )
 
 
 SET_TARGET_PROPERTIES(  fileserver_example 
