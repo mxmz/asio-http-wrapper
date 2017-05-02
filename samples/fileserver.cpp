@@ -20,6 +20,7 @@
 #include "util/stream_pipe.hxx"
 
 #include <boost/asio/write.hpp>
+#include <boost/asio/read_until.hpp>
 #include <boost/filesystem.hpp>
 
 using namespace boost::asio;
@@ -72,6 +73,47 @@ class dropall_stream : public std::enable_shared_from_this<dropall_stream>
 };
 
 
+
+
+
+class fake_http : public std::enable_shared_from_this<fake_http>
+{
+    long int connid_;
+    ip::tcp::socket socket_;
+    boost::asio::streambuf b;
+    
+  public:
+    fake_http(long int connid, ip::tcp::socket&& socket) : 
+        connid_(connid),
+        socket_(move(socket)) {}
+    
+
+    void start() {
+     auto self( this->shared_from_this() );       
+     boost::asio::async_read_until( socket_, b, "\r\n", 
+        [self,this]( boost::system::error_code ec, std::size_t bytes ) {
+            CERR <<connid_ << " " << ec << " " << bytes << endl;
+            if (ec) return;
+            const std::string reply = 
+                                    "HTTP/1.0 200 OK\r\n"
+                                    "Content-Length: 15\r\n"
+                                    "Content-Type: text/html\r\n"
+                                    "\r\n"
+                                    "<html></html>\r\n";
+
+            boost::asio::async_write( socket_, 
+                                    const_buffers_1 (reply.data(), reply.size()),
+                                    boost::asio::transfer_all(),        
+                                    [self,this]( boost::system::error_code ec, std::size_t bytes ) {
+                                        CERR << connid_ << " " << ec << " " << bytes << endl;
+                                        if (ec) return;
+                                    } );
+        });
+    }
+
+};
+
+
 template< class StreamT, class Handler >
 void http_return_file( long int conn_id, StreamT& socket, const boost::filesystem::path& p, Handler handler  );
 
@@ -95,9 +137,16 @@ int main()
     acceptor.listen(5000);
 
     typedef mxmz::inbound_connection_tmpl<mxmz::nodejs::http_parser_base> conn_t;
+    
+    const std::string reply = 
+                                    "HTTP/1.0 200 OK\r\n"
+                                    "Content-Length: 15\r\n"
+                                    "Content-Type: text/html\r\n"
+                                    "\r\n"
+                                    "<html></html>\r\n";
 
-    function<void()> start_accept = [&acceptor, &socket, &start_accept]() {
-        acceptor.async_accept(socket, [&socket, &start_accept](boost::system::error_code ec) {
+    function<void()> start_accept = [&acceptor,&socket,&start_accept,&reply]() {
+        acceptor.async_accept(socket, [&socket,&start_accept,&reply](boost::system::error_code ec) {
             if ( ec ) {
                         CERR << "async_accept " << ec << " " << ec.message() << endl;
                         exit(-1);
@@ -105,10 +154,13 @@ int main()
             if (not ec)
             {
                 ++connections;
+
+                //make_shared<fake_http>(connections, move(socket))->start();
+
                 auto conn = make_shared<conn_t>(connections, move(socket), bodybuffer_size, readbuffer_size);
                 CERR << conn->connection_id() << " new connnection" << endl;
 
-                conn->async_wait_request([conn](boost::system::error_code ec,
+                conn->async_wait_request([conn,&reply](boost::system::error_code ec,
                                                 conn_t::http_request_header_ptr h) {
                     if ( ec ) {
                         CERR << conn->connection_id() << " async_wait_request " << ec << " " << ec.message() << endl;
@@ -127,11 +179,25 @@ int main()
                     auto head = shared_ptr<const mxmz::http_request_header>(h.release()) ;
 
 
-                    pipe->run( [drop,br,head] (const boost::system::error_code& read_ec, const boost::system::error_code& write_ec) mutable  {
+                    pipe->run( [drop,br,head,&reply] (const boost::system::error_code& read_ec, const boost::system::error_code& write_ec) mutable  {
                         CERR << br->connection()->connection_id() << " " << read_ec << " " << read_ec.message() << endl;
                         CERR << br->connection()->connection_id() << " "<< write_ec << " "<< write_ec.message() << endl;
 
                         if ( not read_ec || read_ec == boost::asio::error::eof) {
+
+           
+                                auto& socket = br->connection()->get_socket();
+                                //using boost::asio::const_buffers_1;
+                                boost::asio::async_write( socket, 
+                                    const_buffers_1 (reply.data(), reply.size()),
+                                    boost::asio::transfer_all(),        
+                                    [br]( boost::system::error_code ec, std::size_t bytes ) {
+                                        CERR << br->connection()->connection_id() << " " << ec << " " << bytes << endl;
+                                                                        
+                                    } );
+
+
+                            /*
                                 CERR << br->connection()->connection_id() << " "<< "start respond" << endl;
 
                                 boost::filesystem::path p(".");
@@ -146,7 +212,7 @@ int main()
                                            CERR << br->connection()->connection_id() << " "<< "http_return_file " << ec << endl; 
                                     }
                                  );
-                                
+                              */  
 
                         }  else {
                                 CERR << br->connection()->connection_id() << " "<< "pipe->run read_ec " << read_ec << endl;
