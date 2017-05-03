@@ -132,12 +132,17 @@ class inbound_connection_tmpl:
     public  std::enable_shared_from_this< inbound_connection_tmpl<ParserImplBase, Socket> >, 
     public  mxmz::buffering_request_http_parser< inbound_connection_tmpl<ParserImplBase,Socket>,ParserImplBase > {
 
+    public:
     typedef inbound_connection_tmpl<ParserImplBase,Socket> this_t;
+    
+    typedef Socket socket_t;
 
     typedef mxmz::buffering_request_http_parser<this_t,ParserImplBase> base_t;
     
     typedef BodyReaderTmpl<this_t>    body_observer_t;
-        
+
+    private:
+
     long int connection_id_ = 0;
 
     Socket              socket;

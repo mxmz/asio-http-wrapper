@@ -19,6 +19,9 @@
 
 #include "util/stream_pipe.hxx"
 
+#include "http_server.hxx"
+
+
 #include <boost/asio/write.hpp>
 #include <boost/asio/read_until.hpp>
 #include <boost/filesystem.hpp>
@@ -125,7 +128,7 @@ int main()
     io_service ios;
 
     ip::tcp::resolver resolver(ios);
-    ip::tcp::endpoint endpoint(ip::address::from_string("127.0.0.1"), srv_port);
+    ip::tcp::endpoint endpoint(ip::address::from_string("0.0.0.0"), srv_port);
 
     ip::tcp::acceptor acceptor(ios);
 
@@ -138,6 +141,12 @@ int main()
 
     typedef mxmz::inbound_connection_tmpl<mxmz::nodejs::http_parser_base> conn_t;
     
+
+    mxmz::http_server_tmpl<conn_t>    server(ios,endpoint,ip::tcp::acceptor::reuse_address(true));
+
+
+
+
     const std::string reply = 
                                     "HTTP/1.0 200 OK\r\n"
                                     "Content-Length: 15\r\n"
