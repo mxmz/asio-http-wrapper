@@ -19,7 +19,11 @@
         //"**/CMakeFiles/**" :  true
     },
     "files.associations": {
+        "*.rc": "shellscript",
         "system_error": "cpp",
-        "*.ipp": "cpp"
-    }
+        "*.ipp": "cpp",
+        "future": "cpp",
+        "chrono": "cpp"
+    },
+    "C_Cpp.intelliSenseEngine": "Default"
 }

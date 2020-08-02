@@ -283,12 +283,12 @@ auto test_server(io_service& ios, string s1) {
             auto rc = conn.write_some( const_buffers_1(p, len), ec );
             p += rc;
             CERR << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> t written " << rc << "  " << ec << " remain " << (end-p) <<  endl;
-            std::this_thread::sleep_for( chrono::microseconds(( rand_int() % 100 ) / 98 ));
+            std::this_thread::sleep_for( std::chrono::microseconds(( rand_int() % 100 ) / 98 ));
 
         }
         //std::this_thread::sleep_for( chrono::seconds( 1 ));
         CERR << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> t wait future" << endl;
-        f2.wait_for(chrono::seconds(10));
+        f2.wait_for(std::chrono::seconds(10));
         CERR << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> t finished" << endl;
     });
    
