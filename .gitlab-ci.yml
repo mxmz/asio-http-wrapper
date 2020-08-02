@@ -5,10 +5,10 @@
 image: debian:latest
 
 before_script:
-    - apt update
-    - apt install libasio-dev
-    - apt install libboost-system-dev
-    - apt install cmake
+    - apt-get -y update
+    - apt-get -y install libasio-dev
+    - apt-get -y install libboost-system-dev
+    - apt-get -y install cmake
 # run tests using the binary built before
 test:
   stage: test
