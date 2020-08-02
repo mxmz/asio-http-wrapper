@@ -9,6 +9,8 @@ before_script:
     - apt-get -y install libasio-dev
     - apt-get -y install libboost-system-dev
     - apt-get -y install cmake
+    - apt-get -y install libc++-dev
+
 # run tests using the binary built before
 test:
   stage: test
