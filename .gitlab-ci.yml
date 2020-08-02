@@ -5,6 +5,7 @@
 image: debian:latest
 
 before_script:
+    - apt update
     - apt install libasio-dev
     - apt install libboost-system-dev
     - apt install cmake
