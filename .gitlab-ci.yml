@@ -14,7 +14,7 @@ test:
   stage: test
   script:
     - cd ./tests
-    - cmake
+    - cmake .
     - make
     - ./stream_pipe_test
     - ./ring_buffer_test
