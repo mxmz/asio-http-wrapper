@@ -1,0 +1,21 @@
+# This file is a template, and might need editing before it works on your project.
+# use the official gcc image, based on debian
+# can use verions as well, like gcc:5.2
+# see https://hub.docker.com/_/gcc/
+image: ubuntu:latest
+
+before_script:
+    - apt install libasio-dev
+    - apt install libboost-system-dev
+    - apt install cmake
+# run tests using the binary built before
+test:
+  stage: test
+  script:
+    - cd ./tests
+    - cmake
+    - make
+    - ./stream_pipe_test
+    - ./ring_buffer_test
+    - ./http_parser_test
+    - ./http_inbound_connection_test
