@@ -2,7 +2,10 @@
 # use the official gcc image, based on debian
 # can use verions as well, like gcc:5.2
 # see https://hub.docker.com/_/gcc/
-image: debian:latest
+
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
 
 before_script:
     - apt-get -y update
@@ -14,6 +17,7 @@ before_script:
 
 # run tests using the binary built before
 test:
+  image: debian:latest
   stage: test
   script:
     - cd ./tests
