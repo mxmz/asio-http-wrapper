@@ -6,6 +6,7 @@ image: debian:latest
 
 before_script:
     - apt-get -y update
+    - apt-get -y install g++
     - apt-get -y install libasio-dev
     - apt-get -y install libboost-system-dev
     - apt-get -y install cmake
